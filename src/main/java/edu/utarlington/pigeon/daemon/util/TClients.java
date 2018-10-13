@@ -22,6 +22,7 @@ package edu.utarlington.pigeon.daemon.util;
 import edu.utarlington.pigeon.thrift.BackendService;
 import edu.utarlington.pigeon.thrift.GetTaskService;
 import edu.utarlington.pigeon.thrift.NodeMonitorService;
+import edu.utarlington.pigeon.thrift.SchedulerService;
 import org.apache.log4j.Logger;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
@@ -108,6 +109,28 @@ public class TClients {
         }
         TProtocol proto = new TBinaryProtocol(tr);
         BackendService.Client client = new BackendService.Client(proto);
+        return client;
+    }
+
+    //=======================================
+    // Frontend services clients
+    //=======================================
+    public static SchedulerService.Client createBlockingSchedulerClient(
+            String host, int port) throws IOException {
+        return createBlockingSchedulerClient(host, port, 0);
+    }
+
+    public static SchedulerService.Client createBlockingSchedulerClient(String hostAddress, int port, int timeout)
+            throws IOException {
+        TTransport tr = new TFramedTransport(new TSocket(hostAddress, port, timeout));
+        try {
+            tr.open();
+        } catch (TTransportException e) {
+            LOG.warn("Error creating scheduler client to " + hostAddress + ":" + port);
+            throw new IOException(e);
+        }
+        TProtocol proto = new TBinaryProtocol(tr);
+        SchedulerService.Client client = new SchedulerService.Client(proto);
         return client;
     }
 }

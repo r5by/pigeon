@@ -1,0 +1,81 @@
+package edu.utarlington.pigeon.daemon;
+
+import edu.utarlington.pigeon.daemon.nodemonitor.NodeMonitorThrift;
+import edu.utarlington.pigeon.daemon.scheduler.SchedulerThrift;
+import joptsimple.OptionParser;
+import joptsimple.OptionSet;
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.log4j.BasicConfigurator;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+
+/**
+ * A Pigeon Daemon includes both a scheduler and a node monitor.
+ * The main() method launches a Sparrow daemon.
+ */
+public class PigeonDaemon {
+    // Eventually, we'll want to change this to something higher than debug.
+    public final static Level DEFAULT_LOG_LEVEL = Level.DEBUG;
+
+    public static void main(String[] args) throws Exception {
+        OptionParser parser = new OptionParser();
+        parser.accepts("c", "configuration file (required)").
+                withRequiredArg().ofType(String.class);
+        parser.accepts("help", "print help statement");
+        OptionSet options = parser.parse(args);
+
+        if (options.has("help") || !options.has("c")) {
+            parser.printHelpOn(System.out);
+            System.exit(-1);
+        }
+
+        // Set up a simple configuration that logs on the console.
+        BasicConfigurator.configure();
+
+        //TODO: Add pigeon logging support
+//        Logging.configureAuditLogging();
+
+        String configFile = (String) options.valueOf("c");
+        Configuration conf = new PropertiesConfiguration(configFile);
+        PigeonDaemon daemon = new PigeonDaemon();
+        daemon.initialize(conf);
+    }
+
+    private void initialize(Configuration conf) throws Exception{
+        Level logLevel = Level.toLevel(conf.getString(PigeonConf.LOG_LEVEL, ""),
+                DEFAULT_LOG_LEVEL);
+        Logger.getRootLogger().setLevel(logLevel);
+
+        // Start as many node monitors as specified in config
+        String[] nmPorts = conf.getStringArray(PigeonConf.NM_THRIFT_PORTS);
+        String[] inPorts = conf.getStringArray(PigeonConf.INTERNAL_THRIFT_PORTS);
+
+        if (nmPorts.length != inPorts.length) {
+            throw new ConfigurationException(PigeonConf.NM_THRIFT_PORTS + " and " +
+                    PigeonConf.INTERNAL_THRIFT_PORTS + " not of equal length");
+        }
+        if (nmPorts.length > 1 &&
+                (!conf.getString(PigeonConf.DEPLYOMENT_MODE, "").equals("standalone"))) {
+            throw new ConfigurationException("Mutliple NodeMonitors only allowed " +
+                    "in standalone deployment");
+        }
+        //Setup NodeMonitor (& internal) services on each node
+        if (nmPorts.length == 0) {
+            (new NodeMonitorThrift()).initialize(conf,
+                    NodeMonitorThrift.DEFAULT_NM_THRIFT_PORT,
+                    NodeMonitorThrift.DEFAULT_INTERNAL_THRIFT_PORT);
+        }
+        else {
+            for (int i = 0; i < nmPorts.length; i++) {
+                (new NodeMonitorThrift()).initialize(conf,
+                        Integer.parseInt(nmPorts[i]), Integer.parseInt(inPorts[i]));
+            }
+        }
+
+        // Setup scheduler (& GetTask() ) services on each node
+        SchedulerThrift scheduler = new SchedulerThrift();
+        scheduler.initialize(conf);
+    }
+}

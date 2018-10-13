@@ -21,7 +21,7 @@ package edu.utarlington.pigeon.daemon.nodemonitor;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import edu.utarlington.pigeon.daemon.nodemonitor.TaskScheduler;
+import edu.utarlington.pigeon.daemon.nodemonitor.TaskScheduler.TaskSpec;
 import edu.utarlington.pigeon.daemon.scheduler.SchedulerThrift;
 import edu.utarlington.pigeon.daemon.util.Network;
 import edu.utarlington.pigeon.daemon.util.Resources;
@@ -48,9 +48,9 @@ import java.util.concurrent.Executors;
  * each scheduler, and a client for each application backend, and the TaskLauncherService uses
  * a number of threads equal to the number of slots available for running tasks on the machine.
  */
+//TODO: Logging
 public class TaskLauncherService {
     private final static Logger LOG = Logger.getLogger(TaskLauncherService.class);
-    //TODO: Add pigeon logging support
 //    private final static Logger AUDIT_LOG = Logging.getAuditLogger(TaskLauncherService.class);
 
     /* The number of threads used by the service. */
@@ -72,7 +72,7 @@ public class TaskLauncherService {
         @Override
         public void run() {
             while (true) {
-                TaskScheduler.TaskSpec task = scheduler.getNextTask(); // blocks until task is ready
+                TaskSpec task = scheduler.getNextTask(); // blocks until task is ready
 
                 List<TTaskLaunchSpec> taskLaunchSpecs = executeGetTaskRpc(task);
 //                AUDIT_LOG.info(Logging.auditEventString("node_monitor_get_task_complete", task.requestId,
@@ -106,7 +106,7 @@ public class TaskLauncherService {
         }
 
         /** Uses a getTask() RPC to get the task specification from the appropriate scheduler. */
-        private List<TTaskLaunchSpec> executeGetTaskRpc(TaskScheduler.TaskSpec task) {
+        private List<TTaskLaunchSpec> executeGetTaskRpc(TaskSpec task) {
             String schedulerAddress = task.schedulerAddress.getAddress().getHostAddress();
             if (!schedulerClients.containsKey(schedulerAddress)) {
                 try {
@@ -141,11 +141,13 @@ public class TaskLauncherService {
 //            long numGarbageCollections = Logging.getGCCount() - startGCCount;
 //            LOG.debug("GetTask() RPC for request " + task.requestId + " completed in " +  rpcTime +
 //                    "ms (" + numGarbageCollections + "GCs occured during RPC)");
+            LOG.debug("GetTask() RPC for request " + task.requestId + " completed in " +  rpcTime +
+                    "during RPC)");
             return taskLaunchSpecs;
         }
 
         /** Executes an RPC to launch a task on an application backend. */
-        private void executeLaunchTaskRpc(TaskScheduler.TaskSpec task) {
+        private void executeLaunchTaskRpc(TaskSpec task) {
             if (!backendClients.containsKey(task.appBackendAddress)) {
                 try {
                     backendClients.put(task.appBackendAddress,
@@ -167,9 +169,6 @@ public class TaskLauncherService {
         }
     }
 
-    //=======================================
-    // Constructors
-    //=======================================
     public void initialize(Configuration conf, TaskScheduler scheduler,
                            int nodeMonitorPort) {
         numThreads = scheduler.getMaxActiveTasks();
@@ -185,6 +184,4 @@ public class TaskLauncherService {
             service.submit(new TaskLaunchRunnable());
         }
     }
-
-
 }

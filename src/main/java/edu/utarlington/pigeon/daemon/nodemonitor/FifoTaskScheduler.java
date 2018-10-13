@@ -21,6 +21,7 @@ package edu.utarlington.pigeon.daemon.nodemonitor;
 
 import org.apache.log4j.Logger;
 
+import java.util.Iterator;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -28,7 +29,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  * the number of cores on the machine) and uses a FIFO queue to determine the order to launch
  * tasks whenever outstanding tasks exceed this amount.
  */
-public class FifoTaskScheduler extends TaskScheduler{
+public class FifoTaskScheduler extends TaskScheduler {
     private final static Logger LOG = Logger.getLogger(FifoTaskScheduler.class);
 
     public int maxActiveTasks;
@@ -41,12 +42,53 @@ public class FifoTaskScheduler extends TaskScheduler{
         activeTasks = 0;
     }
 
-    //=======================================
-    // Overrides
-    //=======================================
     @Override
-    int getMaxActiveTasks() {
-        return maxActiveTasks;
+    synchronized int handleSubmitTaskReservation(TaskSpec taskReservation) {
+        // This method, cancelTaskReservations(), and handleTaskCompleted() are synchronized to avoid
+        // race conditions between updating activeTasks and taskReservations.
+        if (activeTasks < maxActiveTasks) {
+            if (taskReservations.size() > 0) {
+                String errorMessage = "activeTasks should be less than maxActiveTasks only " +
+                        "when no outstanding reservations.";
+                LOG.error(errorMessage);
+                throw new IllegalStateException(errorMessage);
+            }
+            makeTaskRunnable(taskReservation);
+            ++activeTasks;
+            LOG.debug("Making task for request " + taskReservation.requestId + " runnable (" +
+                    activeTasks + " of " + maxActiveTasks + " task slots currently filled)");
+            return 0;
+        }
+        LOG.debug("All " + maxActiveTasks + " task slots filled.");
+        int queuedReservations = taskReservations.size();
+        try {
+            LOG.debug("Enqueueing task reservation with request id " + taskReservation.requestId +
+                    " because all task slots filled. " + queuedReservations +
+                    " already enqueued reservations.");
+            taskReservations.put(taskReservation);
+        } catch (InterruptedException e) {
+            LOG.fatal(e);
+        }
+        return queuedReservations;
+    }
+
+    @Override
+    synchronized int cancelTaskReservations(String requestId) {
+        int numReservationsCancelled = 0;
+        Iterator<TaskSpec> reservationsIterator = taskReservations.iterator();
+        while (reservationsIterator.hasNext()) {
+            TaskSpec reservation = reservationsIterator.next();
+            if (reservation.requestId == requestId) {
+                reservationsIterator.remove();
+                ++numReservationsCancelled;
+            }
+        }
+        return numReservationsCancelled;
+    }
+
+    @Override
+    protected void handleTaskFinished(String requestId, String taskId) {
+        attemptTaskLaunch(requestId, taskId);
     }
 
     @Override
@@ -72,5 +114,10 @@ public class FifoTaskScheduler extends TaskScheduler{
         } else {
             activeTasks -= 1;
         }
+    }
+
+    @Override
+    int getMaxActiveTasks() {
+        return maxActiveTasks;
     }
 }

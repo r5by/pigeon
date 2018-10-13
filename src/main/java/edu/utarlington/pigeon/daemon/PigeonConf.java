@@ -22,8 +22,7 @@ package edu.utarlington.pigeon.daemon;
 /**
  * Configuration parameters for pigeon
  *
- * @author ruby_
- * @create 2018-10-02-4:25 PM
+ * TODO: Remove unused sparrow-related properties
  */
 
 public class PigeonConf {

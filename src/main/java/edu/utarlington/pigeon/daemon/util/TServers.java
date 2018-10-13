@@ -50,7 +50,7 @@ public class TServers {
      * Launch a single threaded nonblocking IO server. All requests to this server will be
      * handled in a single thread, so its requests should not contain blocking functions.
      */
-    public static void launchSingleThreadThriftServer(int port, BackendService.Processor<BackendService.Iface> processor)
+    public static void launchSingleThreadThriftServer(int port, TProcessor processor)
         throws IOException {
         LOG.info("Staring async thrift server of type: " + processor.getClass().toString()
                 + " on port " + port);

@@ -19,9 +19,15 @@
 
 package edu.utarlington.pigeon.daemon.scheduler;
 
+import edu.utarlington.pigeon.daemon.PigeonConf;
+import edu.utarlington.pigeon.daemon.util.Network;
+import edu.utarlington.pigeon.daemon.util.TServers;
 import edu.utarlington.pigeon.thrift.*;
+import org.apache.commons.configuration.Configuration;
 import org.apache.thrift.TException;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.List;
 
@@ -36,22 +42,24 @@ public class SchedulerThrift implements SchedulerService.Iface, GetTaskService.I
     private final static int DEFAULT_SCHEDULER_THRIFT_THREADS = 8;
     public final static int DEFAULT_GET_TASK_PORT = 20507;
 
+    private Scheduler scheduler = new Scheduler();
+
     //=======================================
-    // Scheduler Services
+    // Scheduler Services (frontend)
     //=======================================
     @Override
     public boolean registerFrontend(String app, String socketAddress) throws TException {
-        return false;
+        return scheduler.registerFrontend(app, socketAddress);
     }
 
     @Override
-    public void submitJob(TSchedulingRequest req) throws IncompleteRequestException, TException {
-
+    public void submitJob(TSchedulingRequest req) throws TException {
+        scheduler.submitJob(req);
     }
 
     @Override
     public void sendFrontendMessage(String app, TFullTaskId taskId, int status, ByteBuffer message) throws TException {
-
+        scheduler.sendFrontendMessage(app, taskId, status, message);
     }
 
     //=======================================
@@ -59,6 +67,35 @@ public class SchedulerThrift implements SchedulerService.Iface, GetTaskService.I
     //=======================================
     @Override
     public List<TTaskLaunchSpec> getTask(String requestId, THostPort nodeMonitorAddress) throws TException {
-        return null;
+        return scheduler.getTask(requestId, nodeMonitorAddress);
+    }
+
+    //=======================================
+    // Daemon Services
+    //=======================================
+    /**
+     * Initialize this thrift service.
+     *
+     * This spawns a multi-threaded thrift server and listens for Pigeon
+     * scheduler requests.
+     */
+    public void initialize(Configuration conf) throws IOException {
+        SchedulerService.Processor<SchedulerService.Iface> processor =
+                new SchedulerService.Processor<SchedulerService.Iface>(this);
+
+        int port = conf.getInt(PigeonConf.SCHEDULER_THRIFT_PORT,
+                DEFAULT_SCHEDULER_THRIFT_PORT);
+        int threads = conf.getInt(PigeonConf.SCHEDULER_THRIFT_THREADS,
+                DEFAULT_SCHEDULER_THRIFT_THREADS);
+        String hostname = Network.getHostName(conf);
+        InetSocketAddress addr = new InetSocketAddress(hostname, port);
+        scheduler.initialize(conf, addr);
+        TServers.launchThreadedThriftServer(port, threads, processor);
+
+        int getTaskPort = conf.getInt(PigeonConf.GET_TASK_PORT,
+                DEFAULT_GET_TASK_PORT);
+        GetTaskService.Processor<GetTaskService.Iface> getTaskprocessor =
+                new GetTaskService.Processor<GetTaskService.Iface>(this);
+        TServers.launchSingleThreadThriftServer(getTaskPort, getTaskprocessor);
     }
 }

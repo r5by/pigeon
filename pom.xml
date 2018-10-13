@@ -20,7 +20,7 @@
 <artifactId>pigeon</artifactId>
 <packaging>jar</packaging>
 <version>1.0-SNAPSHOT</version>
-<name>sparrow</name>
+<name>pigeon</name>
 <url>http://maven.apache.org</url>
 <dependencies>
     <dependency>

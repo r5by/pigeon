@@ -52,6 +52,8 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 
 public class SimpleBackend implements BackendService.Iface {
+    private static final Logger LOG = Logger.getLogger(SimpleBackend.class);
+
     private static final String LISTEN_PORT = "listen_port";
     private static final int DEFAULT_LISTEN_PORT = 20101;
 
@@ -59,7 +61,8 @@ public class SimpleBackend implements BackendService.Iface {
      * Each task is launched in its own thread from a thread pool with WORKER_THREADS threads,
      * so this should be set equal to the maximum number of tasks that can be running on a worker.
      */
-    private static final int WORKER_THREADS = 16;
+//    private static final int WORKER_THREADS = 16;
+    private static final int WORKER_THREADS = 2;
     private static final String APP_ID = "sleepApp";
 
     /** Configuration parameters to specify where the node monitor is running. */
@@ -68,8 +71,6 @@ public class SimpleBackend implements BackendService.Iface {
     private static String NODE_MONITOR_PORT = "node_monitor_port";
 
     private static NodeMonitorService.Client client;
-
-    private static final Logger LOG = Logger.getLogger(SimpleBackend.class);
     private static final ExecutorService executor =
             Executors.newFixedThreadPool(WORKER_THREADS);
 
@@ -90,6 +91,7 @@ public class SimpleBackend implements BackendService.Iface {
     private class TasksFinishedRpcRunnable implements Runnable {
         @Override
         public void run() {
+            //TODO: Refine the code to avoid throw exceptions when queue is empty
             while (true) {
                 try {
                     TFullTaskId task = finishedTasks.take();

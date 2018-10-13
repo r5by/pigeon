@@ -36,15 +36,13 @@ import java.util.List;
 /**
  * This class extends the thrift Sparrow node monitor interface. It wraps the
  * {@link NodeMonitor} class and delegates most calls to that class.
- * @author ruby_
- * @create 2018-10-02-5:10 PM
  */
-
-public class NodeMonitorThrift implements NodeMonitorService.Iface, InternalService.Iface {
+public class NodeMonitorThrift implements NodeMonitorService.Iface,
+        InternalService.Iface {
     // Defaults if not specified by configuration
     public final static int DEFAULT_NM_THRIFT_PORT = 20501;
     public final static int DEFAULT_NM_THRIFT_THREADS = 32;
-//    public final static int DEFAULT_INTERNAL_THRIFT_PORT = 20502;
+    public final static int DEFAULT_INTERNAL_THRIFT_PORT = 20502;
     public final static int DEFAULT_INTERNAL_THRIFT_THREADS = 8;
 
     private NodeMonitor nodeMonitor = new NodeMonitor();
@@ -85,12 +83,9 @@ public class NodeMonitorThrift implements NodeMonitorService.Iface, InternalServ
         internalAddr = new InetSocketAddress(InetAddress.getLocalHost(), internalPort);
     }
 
-    //============================================
-    // Implementations of node monitor services
-    //============================================
     @Override
-    public boolean registerBackend(String app, String listenSocket) throws TException {
-        Optional<InetSocketAddress> backendAddr = Serialization.strToSocket(listenSocket);
+    public boolean registerBackend(String app, String backendSocket) throws TException {
+        Optional<InetSocketAddress> backendAddr = Serialization.strToSocket(backendSocket);
         if (!backendAddr.isPresent()) {
             return false; // TODO: maybe we should throw some exception here?
         }
@@ -98,25 +93,25 @@ public class NodeMonitorThrift implements NodeMonitorService.Iface, InternalServ
     }
 
     @Override
+    public void sendFrontendMessage(String app, TFullTaskId taskId,
+                                    int status, ByteBuffer message) throws TException {
+        nodeMonitor.sendFrontendMessage(app, taskId, status, message);
+    }
+
+    @Override
     public void tasksFinished(List<TFullTaskId> tasks) throws TException {
-
+        nodeMonitor.tasksFinished(tasks);
     }
 
     @Override
-    public void sendFrontendMessage(String app, TFullTaskId taskId, int status, ByteBuffer message) throws TException {
-
-    }
-
-    //============================================
-    // Implementations of internal services
-    //============================================
-    @Override
-    public boolean enqueueTaskReservations(TEnqueueTaskReservationsRequest request) throws TException {
-        return false;
+    public boolean enqueueTaskReservations(TEnqueueTaskReservationsRequest request)
+            throws TException {
+        return nodeMonitor.enqueueTaskReservations(request);
     }
 
     @Override
-    public void cancelTaskReservations(TCancelTaskReservationsRequest request) throws TException {
-
+    public void cancelTaskReservations(TCancelTaskReservationsRequest request)
+            throws TException {
+        nodeMonitor.cancelTaskReservations(request.requestId);
     }
 }
