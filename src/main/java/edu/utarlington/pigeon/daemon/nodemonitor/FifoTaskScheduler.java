@@ -19,8 +19,10 @@
 
 package edu.utarlington.pigeon.daemon.nodemonitor;
 
+import edu.utarlington.pigeon.thrift.THostPort;
 import org.apache.log4j.Logger;
 
+import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -42,10 +44,38 @@ public class FifoTaskScheduler extends TaskScheduler {
         activeTasks = 0;
     }
 
+//    @Override
+//    synchronized int handleSubmitTaskReservation(TaskSpec taskReservation) {
+//        // This method, cancelTaskReservations(), and handleTaskCompleted() are synchronized to avoid
+//        // race conditions between updating activeTasks and taskReservations.
+//        if (activeTasks < maxActiveTasks) {
+//            if (taskReservations.size() > 0) {
+//                String errorMessage = "activeTasks should be less than maxActiveTasks only " +
+//                        "when no outstanding reservations.";
+//                LOG.error(errorMessage);
+//                throw new IllegalStateException(errorMessage);
+//            }
+//            makeTaskRunnable(taskReservation);
+//            ++activeTasks;
+//            LOG.debug("Making task for request " + taskReservation.requestId + " runnable (" +
+//                    activeTasks + " of " + maxActiveTasks + " task slots currently filled)");
+//            return 0;
+//        }
+//        LOG.debug("All " + maxActiveTasks + " task slots filled.");
+//        int queuedReservations = taskReservations.size();
+//        try {
+//            LOG.debug("Enqueueing task reservation with request id " + taskReservation.requestId +
+//                    " because all task slots filled. " + queuedReservations +
+//                    " already enqueued reservations.");
+//            taskReservations.put(taskReservation);
+//        } catch (InterruptedException e) {
+//            LOG.fatal(e);
+//        }
+//        return queuedReservations;
+//    }
+
     @Override
-    synchronized int handleSubmitTaskReservation(TaskSpec taskReservation) {
-        // This method, cancelTaskReservations(), and handleTaskCompleted() are synchronized to avoid
-        // race conditions between updating activeTasks and taskReservations.
+    synchronized int handleSubmitTaskLaunchRequest(TaskSpec taskToBeLaucnhed) {
         if (activeTasks < maxActiveTasks) {
             if (taskReservations.size() > 0) {
                 String errorMessage = "activeTasks should be less than maxActiveTasks only " +
@@ -53,41 +83,51 @@ public class FifoTaskScheduler extends TaskScheduler {
                 LOG.error(errorMessage);
                 throw new IllegalStateException(errorMessage);
             }
-            makeTaskRunnable(taskReservation);
+            makeTaskRunnable(taskToBeLaucnhed);
             ++activeTasks;
-            LOG.debug("Making task for request " + taskReservation.requestId + " runnable (" +
+            LOG.debug("Making task for request " + taskToBeLaucnhed.requestId + " runnable (" +
                     activeTasks + " of " + maxActiveTasks + " task slots currently filled)");
             return 0;
         }
         LOG.debug("All " + maxActiveTasks + " task slots filled.");
         int queuedReservations = taskReservations.size();
         try {
-            LOG.debug("Enqueueing task reservation with request id " + taskReservation.requestId +
+            LOG.debug("Enqueueing task reservation with request id " + taskToBeLaucnhed.requestId +
                     " because all task slots filled. " + queuedReservations +
                     " already enqueued reservations.");
-            taskReservations.put(taskReservation);
+            taskReservations.put(taskToBeLaucnhed);
         } catch (InterruptedException e) {
             LOG.fatal(e);
         }
         return queuedReservations;
     }
 
-    @Override
-    synchronized int cancelTaskReservations(String requestId) {
-        int numReservationsCancelled = 0;
-        Iterator<TaskSpec> reservationsIterator = taskReservations.iterator();
-        while (reservationsIterator.hasNext()) {
-            TaskSpec reservation = reservationsIterator.next();
-            if (reservation.requestId == requestId) {
-                reservationsIterator.remove();
-                ++numReservationsCancelled;
-            }
-        }
-        return numReservationsCancelled;
-    }
+//    @Override
+//    synchronized int cancelTaskReservations(String requestId) {
+//        int numReservationsCancelled = 0;
+//        Iterator<TaskSpec> reservationsIterator = taskReservations.iterator();
+//        while (reservationsIterator.hasNext()) {
+//            TaskSpec reservation = reservationsIterator.next();
+//            if (reservation.requestId == requestId) {
+//                reservationsIterator.remove();
+//                ++numReservationsCancelled;
+//            }
+//        }
+//        return numReservationsCancelled;
+//    }
 
     @Override
-    protected void handleTaskFinished(String requestId, String taskId) {
+    protected void handleTaskFinished(String requestId, String taskId, THostPort schedulerAddress, InetSocketAddress backendAddress) {
+        //Attempt to fetch a new task
+        LOG.debug("Node monitor now have an idle spot open, attempting to make reservation for fetching a new task from Pigeon scheduler: " + schedulerAddress);
+
+        TaskSpec reservation = new TaskSpec(requestId, taskId, schedulerAddress, backendAddress);
+        try {
+            taskReservations.put(reservation);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         attemptTaskLaunch(requestId, taskId);
     }
 
@@ -108,12 +148,14 @@ public class FifoTaskScheduler extends TaskScheduler {
             String lastExecutedRequestId, String lastExecutedTaskId) {
         TaskSpec reservation = taskReservations.poll();
         if (reservation != null) {
+            LOG.debug("Taking next task(reservation) queued at this node monitor to be launched");
             reservation.previousRequestId = lastExecutedRequestId;
             reservation.previousTaskId = lastExecutedTaskId;
             makeTaskRunnable(reservation);
         } else {
             activeTasks -= 1;
         }
+
     }
 
     @Override

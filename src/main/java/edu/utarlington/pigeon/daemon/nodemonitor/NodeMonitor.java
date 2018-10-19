@@ -27,8 +27,9 @@ import edu.utarlington.pigeon.daemon.util.ThriftClientPool;
 import edu.utarlington.pigeon.thrift.SchedulerService;
 import edu.utarlington.pigeon.thrift.SchedulerService.AsyncClient;
 import edu.utarlington.pigeon.thrift.SchedulerService.AsyncClient.sendFrontendMessage_call;
-import edu.utarlington.pigeon.thrift.TEnqueueTaskReservationsRequest;
+//import edu.utarlington.pigeon.thrift.TEnqueueTaskReservationsRequest;
 import edu.utarlington.pigeon.thrift.TFullTaskId;
+import edu.utarlington.pigeon.thrift.TLaunchTaskRequest;
 import org.apache.commons.configuration.Configuration;
 import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
@@ -56,8 +57,8 @@ public class NodeMonitor {
     private static NodeMonitorState state;
     private HashMap<String, InetSocketAddress> appSockets =
             new HashMap<String, InetSocketAddress>();
-    private HashMap<String, List<TFullTaskId>> appTasks =
-            new HashMap<String, List<TFullTaskId>>();
+//    private HashMap<String, List<TFullTaskId>> appTasks =
+//            new HashMap<String, List<TFullTaskId>>();
     // Map to scheduler socket address for each request id.
     private ConcurrentMap<String, InetSocketAddress> requestSchedulers =
             Maps.newConcurrentMap();
@@ -104,6 +105,7 @@ public class NodeMonitor {
             throw new RuntimeException("Unsupported task scheduler type: " + mode);
         }
         scheduler.initialize(conf, nodeMonitorInternalPort);
+
         taskLauncherService = new TaskLauncherService();
         taskLauncherService.initialize(conf, scheduler, nodeMonitorInternalPort);
     }
@@ -120,7 +122,7 @@ public class NodeMonitor {
             return false;
         }
         appSockets.put(appId, backendAddr);
-        appTasks.put(appId, new ArrayList<TFullTaskId>());
+//        appTasks.put(appId, new ArrayList<TFullTaskId>());
         return state.registerBackend(appId, nmAddr);
     }
 
@@ -128,36 +130,56 @@ public class NodeMonitor {
      * Account for tasks which have finished.
      */
     public void tasksFinished(List<TFullTaskId> tasks) {
-//        LOG.debug(Logging.functionCall(tasks));
-        scheduler.tasksFinished(tasks);
+        InetSocketAddress address =  appSockets.get(tasks.get(0).getAppId());
+        LOG.info("Received task finished notification from " + address);
+        scheduler.tasksFinished(tasks, address);
     }
 
-    public boolean enqueueTaskReservations(TEnqueueTaskReservationsRequest request) {
-//        LOG.debug(Logging.functionCall(request));
-//        AUDIT_LOG.info(Logging.auditEventString("node_monitor_enqueue_task_reservation",
-//                ipAddress, request.requestId));
-        LOG.info("Received enqueue task reservation request from " + ipAddress + " for request " +
-                request.requestId);
+    //todo;
+    public boolean launchTaskRequest(TLaunchTaskRequest request) {
+        LOG.info("Received launch task request from " + ipAddress + " for request " + request.requestID);
 
-        InetSocketAddress schedulerAddress = new InetSocketAddress(
-                request.getSchedulerAddress().getHost(), request.getSchedulerAddress().getPort());
-        requestSchedulers.put(request.getRequestId(), schedulerAddress);
+        InetSocketAddress schedulerAddress = new InetSocketAddress(request.getSchedulerAddress().getHost(), request.getSchedulerAddress().getPort());
+        requestSchedulers.put(request.getRequestID(), schedulerAddress);
 
-        InetSocketAddress socket = appSockets.get(request.getAppId());
+        InetSocketAddress socket = appSockets.get(request.getAppID());
         if (socket == null) {
-            LOG.error("No socket stored for " + request.getAppId() + " (never registered?). " +
+            LOG.error("No socket stored for " + request.getAppID() + " (never registered?). " +
                     "Can't launch task.");
             return false;
         }
-        scheduler.submitTaskReservations(request, socket);
+
+//        scheduler.submitTaskReservations(request, socket);
+        scheduler.submitLaunchTaskRequest(request, socket);
         return true;
     }
 
-    public void cancelTaskReservations(String requestId) {
-        int numReservationsCancelled = scheduler.cancelTaskReservations(requestId);
-//        AUDIT_LOG.debug(Logging.auditEventString(
-//                "node_monitor_cancellation", ipAddress, requestId, numReservationsCancelled));
-    }
+//    public boolean enqueueTaskReservations(TEnqueueTaskReservationsRequest request) {
+////        LOG.debug(Logging.functionCall(request));
+////        AUDIT_LOG.info(Logging.auditEventString("node_monitor_enqueue_task_reservation",
+////                ipAddress, request.requestId));
+//        LOG.info("Received enqueue task reservation request from " + ipAddress + " for request " +
+//                request.requestId);
+//
+//        InetSocketAddress schedulerAddress = new InetSocketAddress(
+//                request.getSchedulerAddress().getHost(), request.getSchedulerAddress().getPort());
+//        requestSchedulers.put(request.getRequestId(), schedulerAddress);
+//
+//        InetSocketAddress socket = appSockets.get(request.getAppId());
+//        if (socket == null) {
+//            LOG.error("No socket stored for " + request.getAppId() + " (never registered?). " +
+//                    "Can't launch task.");
+//            return false;
+//        }
+//        scheduler.submitTaskReservations(request, socket);
+//        return true;
+//    }
+//
+//    public void cancelTaskReservations(String requestId) {
+//        int numReservationsCancelled = scheduler.cancelTaskReservations(requestId);
+////        AUDIT_LOG.debug(Logging.auditEventString(
+////                "node_monitor_cancellation", ipAddress, requestId, numReservationsCancelled));
+//    }
 
     private class sendFrontendMessageCallback implements
             AsyncMethodCallback<sendFrontendMessage_call> {

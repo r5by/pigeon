@@ -42,16 +42,18 @@ public class ConfigUtil {
      *
      * Returns a map of address of backends to a {@link TResourceVector} describing the
      * total resource capacity for that backend.
+     *
+     * For Pigeon, backends for high/low priority tasks need to be parsed separately by caller
      */
     public static Set<InetSocketAddress> parseBackends(
-            Configuration conf) {
-        if (!conf.containsKey(PigeonConf.STATIC_NODE_MONITORS)) {
-            throw new RuntimeException("Missing configuration node monitor list");
+            Configuration conf, String backendType) {
+        if (!conf.containsKey(backendType) ) {
+            throw new RuntimeException("Missing configuration high priority worker list");
         }
 
         Set<InetSocketAddress> backends = new HashSet<InetSocketAddress>();
 
-        for (String node: conf.getStringArray(PigeonConf.STATIC_NODE_MONITORS)) {
+        for (String node: conf.getStringArray(backendType)) {
             Optional<InetSocketAddress> addr = Serialization.strToSocket(node);
             if (!addr.isPresent()) {
                 LOG.warn("Bad backend address: " + node);

@@ -99,19 +99,24 @@ public class NodeMonitorThrift implements NodeMonitorService.Iface,
     }
 
     @Override
-    public void tasksFinished(List<TFullTaskId> tasks) throws TException {
+    public void tasksFinished(List<TFullTaskId> tasks) {
         nodeMonitor.tasksFinished(tasks);
     }
 
     @Override
-    public boolean enqueueTaskReservations(TEnqueueTaskReservationsRequest request)
-            throws TException {
-        return nodeMonitor.enqueueTaskReservations(request);
+    public boolean launchTaskRequest(TLaunchTaskRequest launchTaskRequest) throws TException {
+        return nodeMonitor.launchTaskRequest(launchTaskRequest);
     }
 
-    @Override
-    public void cancelTaskReservations(TCancelTaskReservationsRequest request)
-            throws TException {
-        nodeMonitor.cancelTaskReservations(request.requestId);
-    }
+//    @Override
+//    public boolean enqueueTaskReservations(TEnqueueTaskReservationsRequest request)
+//            throws TException {
+//        return nodeMonitor.enqueueTaskReservations(request);
+//    }
+//
+//    @Override
+//    public void cancelTaskReservations(TCancelTaskReservationsRequest request)
+//            throws TException {
+//        nodeMonitor.cancelTaskReservations(request.requestId);
+//    }
 }

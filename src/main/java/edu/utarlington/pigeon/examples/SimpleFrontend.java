@@ -100,6 +100,13 @@ public class SimpleFrontend implements FrontendService.Iface {
                 TTaskSpec spec = new TTaskSpec();
                 spec.setTaskId(Integer.toString(taskId));
                 spec.setMessage(message.array());
+                //HT or LT
+                spec.setIsHT(false);
+//                if(taskId % 2 == 0)
+//                    spec.setIsHT(true);
+//                else
+//                    spec.setIsHT(false);
+
                 tasks.add(spec);
             }
             long start = System.currentTimeMillis();

@@ -15,14 +15,23 @@ import java.util.Set;
 public class ConfigSchedulerState implements SchedulerState{
     private static final Logger LOG = Logger.getLogger(ConfigSchedulerState.class);
 
-    Set<InetSocketAddress> backends;
+    /* Pigeon scheduler save backends for high/low priority tasks separately */
+    Set<InetSocketAddress> backendsHW;
+    Set<InetSocketAddress> backendsLW;
     private Configuration conf;
 
     @Override
     public void initialize(Configuration conf) throws IOException {
-        backends = ConfigUtil.parseBackends(conf);
+        backendsHW = ConfigUtil.parseBackends(conf, PigeonConf.STATIC_NODE_MONITORS_HW);
+        backendsLW = ConfigUtil.parseBackends(conf, PigeonConf.STATIC_NODE_MONITORS_LW);
         this.conf = conf;
     }
+
+    @Override
+    public boolean isHW(InetSocketAddress backendAddr) {
+        return backendsHW.contains(backendAddr);
+    }
+
 
     @Override
     public boolean watchApplication(String appId) {
@@ -34,12 +43,22 @@ public class ConfigSchedulerState implements SchedulerState{
     }
 
     @Override
-    public Set<InetSocketAddress> getBackends(String appId) {
+    public Set<InetSocketAddress> getBackends(String appId, boolean isHW) {
         if (!appId.equals(conf.getString(PigeonConf.STATIC_APP_NAME))) {
             LOG.warn("Requested backends for app " + appId +
                     " but was expecting app " + conf.getString(PigeonConf.STATIC_APP_NAME));
         }
-        return backends;
+
+        return isHW ? backendsHW : backendsLW;
     }
 
+    @Override
+    public Set<InetSocketAddress> getBackends(boolean isHW) {
+        if(isHW)
+            LOG.debug("Preparing backends for hight priority workloads");
+        else
+            LOG.debug("Preparing backends for low priority workloads");
+
+        return isHW ? backendsHW : backendsLW;
+    }
 }

@@ -27,12 +27,11 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
-/**
- * @author ruby_
- * @create 2018-10-02-4:30 PM
- */
-
 public class Network {
+
+    public static InetSocketAddress thriftToSocketAddress(THostPort address) {
+        return new InetSocketAddress(address.getHost(), address.getPort());
+    }
 
     public static THostPort socketAddressToThrift(InetSocketAddress address) {
         return new THostPort(address.getAddress().getHostAddress(), address.getPort());

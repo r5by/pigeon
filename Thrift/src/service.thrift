@@ -43,9 +43,8 @@ service GetTaskService {
   # in that enqueueTask() request. Currently, we only support returning 0 or 1 task
   # specs, where 0 signals that the given request has no more tasks that can be launched on the
   # node.
-  # TODO: Add a numTasks parameter to signal how many slots are free, and support
-  #       returning more than 1 tasks.
-  list<types.TTaskLaunchSpec> getTask(1: string requestId, 2: types.THostPort nodeMonitorAddress);
+  # TODO: Add a numTasks parameter to signal how many slots are free, and support returning more than 1 tasks.
+  types.TLaunchTaskRequest getTask(1: string requestId, 2: types.THostPort nodeMonitorAddress);
 }
 
 # A service used by application backends to coordinate with Pigeon.
@@ -81,10 +80,13 @@ service InternalService {
   # Enqueues a reservation to launch the given number of tasks. The NodeMonitor sends
   # a GetTask() RPC to the given schedulerAddress when it is ready to launch a task, for each
   # enqueued task reservation. Returns whether or not the task was successfully enqueued.
-  bool enqueueTaskReservations(1: types.TEnqueueTaskReservationsRequest request);
+//  bool enqueueTaskReservations(1: types.TEnqueueTaskReservationsRequest request);
 
   # Cancels reservations for jobs for which all tasks have already been launched.
-  void cancelTaskReservations(1: types.TCancelTaskReservationsRequest request);
+//  void cancelTaskReservations(1: types.TCancelTaskReservationsRequest request);
+
+  # Pigeon don't need reservations, only need to send task launch request to node monitor from scheduler
+  bool launchTaskRequest(1: types.TLaunchTaskRequest launchTaskRequest);
 }
 
 service SchedulerStateStoreService {

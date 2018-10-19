@@ -35,12 +35,15 @@ import java.util.Set;
 public class ConfigNodeMonitorState implements NodeMonitorState{
     private static final Logger LOG = Logger.getLogger(ConfigNodeMonitorState.class);
 
-    private Set<InetSocketAddress> nodeMonitors;
+    private Set<InetSocketAddress> nodeMonitorsHW;
+    private Set<InetSocketAddress> nodeMonitorsLW;
     private String staticAppId;
 
     @Override
     public void initialize(Configuration conf) throws IOException {
-        nodeMonitors = ConfigUtil.parseBackends(conf);
+        //Pigeon initializes node monitors for high/low priority task separately
+        nodeMonitorsHW = ConfigUtil.parseBackends(conf, PigeonConf.STATIC_NODE_MONITORS_HW);
+        nodeMonitorsLW = ConfigUtil.parseBackends(conf, PigeonConf.STATIC_NODE_MONITORS_LW);
         staticAppId = conf.getString(PigeonConf.STATIC_APP_NAME);
     }
 
@@ -50,9 +53,14 @@ public class ConfigNodeMonitorState implements NodeMonitorState{
         if (!appId.equals(staticAppId)) {
             LOG.error("Requested to register backend for app " + appId +
                     " but was expecting app " + staticAppId);
-        } else if (!nodeMonitors.contains(nodeMonitor)) {
+        } else if (!(nodeMonitorsHW.contains(nodeMonitor)
+                        || nodeMonitorsLW.contains(nodeMonitor))) {
             StringBuilder errorMessage = new StringBuilder();
-            for (InetSocketAddress nodeMonitorAddress : nodeMonitors) {
+
+            for (InetSocketAddress nodeMonitorAddress : nodeMonitorsHW) {
+                errorMessage.append(nodeMonitorAddress.toString());
+            }
+            for (InetSocketAddress nodeMonitorAddress : nodeMonitorsLW) {
                 errorMessage.append(nodeMonitorAddress.toString());
             }
             throw new RuntimeException("Address " + nodeMonitor.toString() +

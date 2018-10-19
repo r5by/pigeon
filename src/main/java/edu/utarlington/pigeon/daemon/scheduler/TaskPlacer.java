@@ -1,7 +1,8 @@
 package edu.utarlington.pigeon.daemon.scheduler;
 
-import edu.utarlington.pigeon.thrift.TEnqueueTaskReservationsRequest;
+//import edu.utarlington.pigeon.thrift.TEnqueueTaskReservationsRequest;
 import edu.utarlington.pigeon.thrift.THostPort;
+import edu.utarlington.pigeon.thrift.TLaunchTaskRequest;
 import edu.utarlington.pigeon.thrift.TSchedulingRequest;
 import edu.utarlington.pigeon.thrift.TTaskLaunchSpec;
 
@@ -10,6 +11,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 
 /***
  * A TaskPlacer is responsible for assigning the tasks in a job to backends. Assigning tasks to
@@ -33,16 +35,18 @@ public interface TaskPlacer {
      * that should be send to those node monitors. The caller is responsible for ensuring that
      * {@link schedulingRequest} is properly filled out.
      */
-    public Map<InetSocketAddress, TEnqueueTaskReservationsRequest>
-    getEnqueueTaskReservationsRequests(
-            TSchedulingRequest schedulingRequest, String requestId,
-            Collection<InetSocketAddress> nodes, THostPort schedulerAddress);
+//    public Map<InetSocketAddress, TEnqueueTaskReservationsRequest>
+//    getEnqueueTaskReservationsRequests(
+//            TSchedulingRequest schedulingRequest, String requestId,
+//            Collection<InetSocketAddress> nodes,THostPort schedulerAddress);
 
     /**
      * Returns a List of {@link TTaskLaunchSpec}s describing tasks that should be launched from the
      * give node monitor.  Always returns either 0 or 1 tasks.
-     */
-    public List<TTaskLaunchSpec> assignTask(THostPort nodeMonitorAddress);
+     *
+     * For pigeon, the getTask() RPC call is handled at scheduler side
+     * /
+//    public List<TTaskLaunchSpec> assignTask(THostPort nodeMonitorAddress);
 
     /** Returns true if all of the job's tasks have been placed. */
     public boolean allTasksPlaced();
@@ -51,5 +55,14 @@ public interface TaskPlacer {
      *
      * After this method is called once, the TaskPlacer assumes all those node monitors were sent
      * cancellation messages, so it will not return any node monitors in the future. */
-    public Set<THostPort> getOutstandingNodeMonitorsForCancellation();
+//    public Set<THostPort> getOutstandingNodeMonitorsForCancellation();
+
+    /**
+     * Enqueue task request */
+    void enqueueRequest(TSchedulingRequest request, THostPort address) throws Exception;
+
+    /** Records of completed/total tasks of the request */
+    public int completedTasks();
+    public int totalTasks();
+    public int count();
 }

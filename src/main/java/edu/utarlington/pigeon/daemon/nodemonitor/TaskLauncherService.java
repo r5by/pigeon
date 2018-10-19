@@ -27,12 +27,14 @@ import edu.utarlington.pigeon.daemon.util.Network;
 import edu.utarlington.pigeon.daemon.util.Resources;
 import edu.utarlington.pigeon.daemon.util.TClients;
 import edu.utarlington.pigeon.thrift.*;
+import javafx.concurrent.Task;
 import org.apache.commons.configuration.Configuration;
 import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -74,22 +76,28 @@ public class TaskLauncherService {
             while (true) {
                 TaskSpec task = scheduler.getNextTask(); // blocks until task is ready
 
-                List<TTaskLaunchSpec> taskLaunchSpecs = executeGetTaskRpc(task);
+                //Pigeon scheduler may already pass the TTaskLaunchSpec in its TLaunchTaskRequest wrapper
+                //o.w. fill the entry with remote RPC call to scheduler
+                if (task.taskSpec == null) {
+                    TLaunchTaskRequest taskLunchRequest = executeGetTaskRpc(task);
+                    List<TTaskLaunchSpec> taskLaunchSpecs = unWrapLaunchTaskRequest(taskLunchRequest);
 //                AUDIT_LOG.info(Logging.auditEventString("node_monitor_get_task_complete", task.requestId,
 //                        nodeMonitorInternalAddress.getHost()));
 
-                if (taskLaunchSpecs.isEmpty()) {
-                    LOG.debug("Didn't receive a task for request " + task.requestId);
-                    scheduler.noTaskForReservation(task);
-                    continue;
+                    if (taskLaunchSpecs.isEmpty()) {
+                        LOG.debug("Didn't receive a task for request " + task.requestId);
+                        scheduler.noTaskForReservation(task);
+                        continue;
+                    }
+                    if (taskLaunchSpecs.size() > 1) {
+                        LOG.warn("Received " + taskLaunchSpecs +
+                                " task launch specifications; ignoring all but the first one.");
+                    }
+                    task.taskSpec = taskLaunchSpecs.get(0);
+                    populateTaskSpec(task, taskLunchRequest);
+                    LOG.debug("Received task for request " + task.requestId + ", task " +
+                            task.taskSpec.getTaskId());
                 }
-                if (taskLaunchSpecs.size() > 1) {
-                    LOG.warn("Received " + taskLaunchSpecs +
-                            " task launch specifications; ignoring all but the first one.");
-                }
-                task.taskSpec = taskLaunchSpecs.get(0);
-                LOG.debug("Received task for request " + task.requestId + ", task " +
-                        task.taskSpec.getTaskId());
 
                 // Launch the task on the backend.
 //                AUDIT_LOG.info(Logging.auditEventString("node_monitor_task_launch",
@@ -106,7 +114,7 @@ public class TaskLauncherService {
         }
 
         /** Uses a getTask() RPC to get the task specification from the appropriate scheduler. */
-        private List<TTaskLaunchSpec> executeGetTaskRpc(TaskSpec task) {
+        private TLaunchTaskRequest executeGetTaskRpc(TaskSpec task) {
             String schedulerAddress = task.schedulerAddress.getAddress().getHostAddress();
             if (!schedulerClients.containsKey(schedulerAddress)) {
                 try {
@@ -116,8 +124,9 @@ public class TaskLauncherService {
                                     SchedulerThrift.DEFAULT_GET_TASK_PORT));
                 } catch (IOException e) {
                     LOG.error("Error creating thrift client: " + e.getMessage());
-                    List<TTaskLaunchSpec> emptyTaskLaunchSpecs = Lists.newArrayList();
-                    return emptyTaskLaunchSpecs;
+//                    TLaunchTaskRequest emptyTaskLaunchSpecs = Lists.newArrayList();
+//                    return emptyTaskLaunchSpecs;
+                    return new TLaunchTaskRequest();
                 }
             }
             GetTaskService.Client getTaskClient = schedulerClients.get(schedulerAddress);
@@ -128,13 +137,14 @@ public class TaskLauncherService {
             LOG.debug("Attempting to get task for request " + task.requestId);
 //            AUDIT_LOG.debug(Logging.auditEventString("node_monitor_get_task_launch", task.requestId,
 //                    nodeMonitorInternalAddress.getHost()));
-            List<TTaskLaunchSpec> taskLaunchSpecs;
+            TLaunchTaskRequest taskLaunchSpecs;
             try {
                 taskLaunchSpecs = getTaskClient.getTask(task.requestId, nodeMonitorInternalAddress);
             } catch (TException e) {
                 LOG.error("Error when launching getTask RPC:" + e.getMessage());
-                List<TTaskLaunchSpec> emptyTaskLaunchSpecs = Lists.newArrayList();
-                return emptyTaskLaunchSpecs;
+//                List<TLaunchTaskRequest> emptyTaskLaunchSpecs = Lists.newArrayList();
+//                return emptyTaskLaunchSpecs;
+                return new TLaunchTaskRequest();
             }
 
             long rpcTime = System.currentTimeMillis() - startTimeMillis;
@@ -142,8 +152,27 @@ public class TaskLauncherService {
 //            LOG.debug("GetTask() RPC for request " + task.requestId + " completed in " +  rpcTime +
 //                    "ms (" + numGarbageCollections + "GCs occured during RPC)");
             LOG.debug("GetTask() RPC for request " + task.requestId + " completed in " +  rpcTime +
-                    "during RPC)");
+                    "ms");
             return taskLaunchSpecs;
+        }
+
+        /**
+         * Used for Pigeon task launch request wrapper
+         */
+        private List<TTaskLaunchSpec> unWrapLaunchTaskRequest(TLaunchTaskRequest requests) {
+            List<TTaskLaunchSpec> taskLaunchSpecs = Lists.newArrayList();
+            if(requests.getRequestID() != null && !requests.getTasksToBeLaunched().isEmpty()) {
+                taskLaunchSpecs = requests.getTasksToBeLaunched();
+            }
+            return taskLaunchSpecs;
+        }
+
+        private void populateTaskSpec(TaskSpec task, TLaunchTaskRequest requests) {
+            task.requestId = requests.getRequestID();
+            task.appId = requests.getAppID();
+            task.user = requests.getUser();
+            task.schedulerAddress = new InetSocketAddress(requests.getSchedulerAddress().getHost(),
+                    requests.getSchedulerAddress().getPort());
         }
 
         /** Executes an RPC to launch a task on an application backend. */
@@ -159,8 +188,9 @@ public class TaskLauncherService {
             }
             BackendService.Client backendClient = backendClients.get(task.appBackendAddress);
             THostPort schedulerHostPort = Network.socketAddressToThrift(task.schedulerAddress);
+            //The isH property is irrelevant at the backend(worker) for Pigeon, so simply pass the default value here.
             TFullTaskId taskId = new TFullTaskId(task.taskSpec.getTaskId(), task.requestId,
-                    task.appId, schedulerHostPort);
+                    task.appId, schedulerHostPort, false);
             try {
                 backendClient.launchTask(task.taskSpec.bufferForMessage(), taskId, task.user);
             } catch (TException e) {

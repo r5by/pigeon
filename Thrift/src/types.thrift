@@ -40,13 +40,14 @@ struct TResourceVector {
 }
 
 
-// A fully-specified Pigeon task has four identifiers
-// neeed?
+// A fully-specified Pigeon task has 5 identifiers
+// + boolean identifier to indicate whether it's a HT (high-priority task, 1) or LT (0)
 struct TFullTaskId {
   1: string taskId;    // Task ID as reported from the FE
   2: string requestId; // Scheduling request ID as assigned by the FE
   3: string appId;     // ID of the application
   4: THostPort schedulerAddress; // Address of the scheduler that scheduled the task.
+  5: bool isHT;
 }
 
 struct TUserGroupInfo {
@@ -61,6 +62,7 @@ struct TTaskSpec {
   1: string taskId;
   2: TPlacementPreference preference;
   3: binary message;
+  4: bool isHT;
 }
 
 struct TSchedulingRequest {
@@ -73,16 +75,24 @@ struct TSchedulingRequest {
   5: optional double probeRatio;
 }
 
-struct TEnqueueTaskReservationsRequest {
-  1: string appId;
-  2: TUserGroupInfo user;
-  3: string requestId;
-  4: THostPort schedulerAddress;
-  5: i32 numTasks;
-}
+#struct TEnqueueTaskReservationsRequest {
+ # 1: string appId;
+  #2: TUserGroupInfo user;
+  #3: string requestId;
+  #4: THostPort schedulerAddress;
+  #5: i32 numTasks;
+#}
 
-struct TCancelTaskReservationsRequest {
-  1: string requestId;
+#struct TCancelTaskReservationsRequest {
+ # 1: string requestId;
+#}
+
+struct TLaunchTaskRequest {
+    1: string appID;
+    2: TUserGroupInfo user;
+    3: string requestID;
+    4: THostPort schedulerAddress;
+    5: list<TTaskLaunchSpec> tasksToBeLaunched;
 }
 
 # Information needed to launch a task.  The application and user information are not needed

@@ -89,7 +89,9 @@ public class PigeonConf {
     // Parameters for static operation.
     /** Expects a comma-separated list of host:port pairs describing the address of the
      * internal interface of the node monitors. */
-    public final static String STATIC_NODE_MONITORS = "static.node_monitors";
+//    public final static String STATIC_NODE_MONITORS = "static.node_monitors";
+    public final static String STATIC_NODE_MONITORS_HW = "static.node_monitors_hw";
+    public final static String STATIC_NODE_MONITORS_LW = "static.node_monitors_lw";
     public final static String STATIC_APP_NAME = "static.app.name";
 
     public static final String GET_TASK_PORT = "get_task.port";

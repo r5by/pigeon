@@ -35,7 +35,6 @@ import java.util.List;
  * This class extends the thrift sparrow scheduler interface. It wraps the
  * {@link Scheduler} class and delegates most calls to that class.
  */
-//TODO: Complete this class
 public class SchedulerThrift implements SchedulerService.Iface, GetTaskService.Iface {
     // Defaults if not specified by configuration
     public final static int DEFAULT_SCHEDULER_THRIFT_PORT = 20503;
@@ -66,8 +65,8 @@ public class SchedulerThrift implements SchedulerService.Iface, GetTaskService.I
     // GetTask Services
     //=======================================
     @Override
-    public List<TTaskLaunchSpec> getTask(String requestId, THostPort nodeMonitorAddress) throws TException {
-        return scheduler.getTask(requestId, nodeMonitorAddress);
+    public TLaunchTaskRequest getTask(String requestID, THostPort nodeMonitorAddress) throws TException {
+        return scheduler.getTask(requestID, nodeMonitorAddress);
     }
 
     //=======================================

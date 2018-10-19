@@ -95,6 +95,7 @@ public class SimpleBackend implements BackendService.Iface {
             while (true) {
                 try {
                     TFullTaskId task = finishedTasks.take();
+                    LOG.debug("Backend has completed task: " + task.taskId + " for request:" + task.requestId);
                     client.tasksFinished(Lists.newArrayList(task));
                 } catch (InterruptedException e) {
                     LOG.error("Error taking a task from the queue: " + e.getMessage());
