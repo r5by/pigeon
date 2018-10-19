@@ -154,7 +154,7 @@ public class SimpleBackend implements BackendService.Iface {
 
     @Override
     public void launchTask(ByteBuffer message, TFullTaskId taskId, TUserGroupInfo user) throws TException {
-        LOG.info("Submitting task " + taskId.getTaskId() + " at " + System.currentTimeMillis());
+        LOG.info("Launching task: " + taskId.getTaskId() + " for request: " +  taskId.requestId + " at worker, starting from system time:" + System.currentTimeMillis());
 
         executor.submit(new TaskRunnable(
                 taskId.requestId, taskId, message));

@@ -1,3 +1,22 @@
+/*
+ * PIGEON
+ * Copyright 2018 Univeristy of Texas at Arlington
+ *
+ * Modified from Sparrow - University of California, Berkeley
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package edu.utarlington.pigeon.daemon.nodemonitor;
 
 import com.google.common.collect.Lists;
@@ -108,7 +127,7 @@ public abstract class TaskScheduler {
     void tasksFinished(List<TFullTaskId> finishedTasks, InetSocketAddress backendAddress) {
         for (TFullTaskId t : finishedTasks) {
 //            AUDIT_LOG.info(Logging.auditEventString("task_completed", t.getRequestId(), t.getTaskId()));
-            LOG.debug("Task: " + t.taskId + " for request: " + t.requestId + " has finished by worker:" + backendAddress);
+//            LOG.debug("Task: " + t.taskId + " for request: " + t.requestId + " has finished by worker:" + backendAddress);
             handleTaskFinished(t.getRequestId(), t.getTaskId(), t.getSchedulerAddress(), backendAddress);
         }
     }
@@ -123,7 +142,7 @@ public abstract class TaskScheduler {
 
     protected void makeTaskRunnable(TaskSpec task) {
         try {
-            LOG.debug("Putting reservation for request " + task.requestId + " in runnable queue");
+//            LOG.debug("Putting reservation for request " + task.requestId + " in runnable queue");
             runnableTaskQueue.put(task);
         } catch (InterruptedException e) {
             LOG.fatal("Unable to add task to runnable queue: " + e.getMessage());
@@ -141,7 +160,7 @@ public abstract class TaskScheduler {
     public synchronized int submitLaunchTaskRequest(TLaunchTaskRequest request,
                                                         InetSocketAddress appBackendAddress) {
         TaskSpec taskToBeLaunched = new TaskSpec(request, appBackendAddress);
-        LOG.debug("Launching taskID: " + taskToBeLaunched.taskSpec.taskId + " for request: " + request.requestID);
+        LOG.debug("Launching task: " + taskToBeLaunched.taskSpec.taskId + " for request: " + request.requestID);
         return handleSubmitTaskLaunchRequest(taskToBeLaunched);
     }
 

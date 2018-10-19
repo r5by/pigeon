@@ -30,24 +30,6 @@ import java.util.concurrent.BlockingQueue;
  * TaskPlacers are not thread safe; access to a particular TaskPlacer should be serialized.
  */
 public interface TaskPlacer {
-    /**
-     * Returns a mapping of node monitor socket addresses to {@link TEnqueueTaskReservationRequest}s
-     * that should be send to those node monitors. The caller is responsible for ensuring that
-     * {@link schedulingRequest} is properly filled out.
-     */
-//    public Map<InetSocketAddress, TEnqueueTaskReservationsRequest>
-//    getEnqueueTaskReservationsRequests(
-//            TSchedulingRequest schedulingRequest, String requestId,
-//            Collection<InetSocketAddress> nodes,THostPort schedulerAddress);
-
-    /**
-     * Returns a List of {@link TTaskLaunchSpec}s describing tasks that should be launched from the
-     * give node monitor.  Always returns either 0 or 1 tasks.
-     *
-     * For pigeon, the getTask() RPC call is handled at scheduler side
-     * /
-//    public List<TTaskLaunchSpec> assignTask(THostPort nodeMonitorAddress);
-
     /** Returns true if all of the job's tasks have been placed. */
     public boolean allTasksPlaced();
 

@@ -131,7 +131,7 @@ public class NodeMonitor {
      */
     public void tasksFinished(List<TFullTaskId> tasks) {
         InetSocketAddress address =  appSockets.get(tasks.get(0).getAppId());
-        LOG.info("Received task finished notification from " + address);
+        LOG.info("Received worker idle notification from " + address);
         scheduler.tasksFinished(tasks, address);
     }
 

@@ -1,3 +1,22 @@
+/*
+ * PIGEON
+ * Copyright 2018 Univeristy of Texas at Arlington
+ *
+ * Modified from Sparrow - University of California, Berkeley
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package edu.utarlington.pigeon.daemon.scheduler;
 
 import com.google.common.base.Optional;
@@ -36,21 +55,11 @@ public class Scheduler {
     /** Used to uniquely identify requests arriving at this scheduler. */
     private AtomicInteger counter = new AtomicInteger(0);
 
-    /** How many times the special case has been triggered. */
-//    private AtomicInteger specialCaseCounter = new AtomicInteger(0);
-
     private THostPort address;
 
     /** Socket addresses for each frontend. */
     HashMap<String, InetSocketAddress> frontendSockets =
             new HashMap<String, InetSocketAddress>();
-
-    /**
-     * Service that handles cancelling outstanding reservations for jobs that have already been
-     * scheduled.  Only instantiated if {@code SparrowConf.CANCELLATION} is set to true.
-     */
-//    private CancellationService cancellationService;
-//    private boolean useCancellation;
 
     /** Thrift client pool for communicating with node monitors */
     ThriftClientPool<InternalService.AsyncClient> nodeMonitorClientPool =
@@ -64,10 +73,6 @@ public class Scheduler {
 
     /** Information about cluster workload due to other schedulers. */
     private SchedulerState state;
-
-    /** Probe ratios to use if the probe ratio is not explicitly set in the request. */
-//    private double defaultProbeRatioUnconstrained;
-//    private double defaultProbeRatioConstrained;
 
     /**
      * For each request, the task placer that should be used to place the request's tasks. Indexed
@@ -247,7 +252,10 @@ public class Scheduler {
 
         try {
             LOG.debug("Enqueueing and sending task launch requests for request: " + requestId);
-            taskPlacer.enqueueRequest(request, address);
+            synchronized (state) {
+                //avoid racing condition with getTask() RPC call
+                taskPlacer.enqueueRequest(request, address);
+            }
         } catch (Exception e) {
             LOG.error("Error processing task launch request at scheduler: " + address +":" + e);
         }
@@ -274,7 +282,7 @@ public class Scheduler {
             }
         }
 
-        /** H/LIW and H/LTQ should be accessed in synchronized ways across the lifycyle of this working scheduler service */
+        /** H/LIW and H/LTQ should be accessed in synchronized way*/
         synchronized (state) {
             InetSocketAddress worker = Network.thriftToSocketAddress(nodeMonitorAddress);
 

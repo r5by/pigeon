@@ -107,8 +107,8 @@ public class TaskLauncherService {
 //                        task.previousRequestId,
 //                        task.previousTaskId));
                 executeLaunchTaskRpc(task);
-                LOG.debug("Launched task " + task.taskSpec.getTaskId() + " for request " + task.requestId +
-                        " on application backend at system time " + System.currentTimeMillis());
+//                LOG.debug("Launched task " + task.taskSpec.getTaskId() + " for request " + task.requestId +
+//                        " on application backend at system time " + System.currentTimeMillis());
             }
 
         }

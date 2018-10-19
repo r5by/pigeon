@@ -37,8 +37,6 @@ import java.net.InetSocketAddress;
 /**
  * Wrapper class for launching various thrift services clients for Pigeon
  *
- * @author ruby_
- * @create 2018-10-02-4:53 PM
  */
 
 public class TClients {

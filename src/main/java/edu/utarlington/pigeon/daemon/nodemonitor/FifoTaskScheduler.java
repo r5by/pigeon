@@ -44,36 +44,6 @@ public class FifoTaskScheduler extends TaskScheduler {
         activeTasks = 0;
     }
 
-//    @Override
-//    synchronized int handleSubmitTaskReservation(TaskSpec taskReservation) {
-//        // This method, cancelTaskReservations(), and handleTaskCompleted() are synchronized to avoid
-//        // race conditions between updating activeTasks and taskReservations.
-//        if (activeTasks < maxActiveTasks) {
-//            if (taskReservations.size() > 0) {
-//                String errorMessage = "activeTasks should be less than maxActiveTasks only " +
-//                        "when no outstanding reservations.";
-//                LOG.error(errorMessage);
-//                throw new IllegalStateException(errorMessage);
-//            }
-//            makeTaskRunnable(taskReservation);
-//            ++activeTasks;
-//            LOG.debug("Making task for request " + taskReservation.requestId + " runnable (" +
-//                    activeTasks + " of " + maxActiveTasks + " task slots currently filled)");
-//            return 0;
-//        }
-//        LOG.debug("All " + maxActiveTasks + " task slots filled.");
-//        int queuedReservations = taskReservations.size();
-//        try {
-//            LOG.debug("Enqueueing task reservation with request id " + taskReservation.requestId +
-//                    " because all task slots filled. " + queuedReservations +
-//                    " already enqueued reservations.");
-//            taskReservations.put(taskReservation);
-//        } catch (InterruptedException e) {
-//            LOG.fatal(e);
-//        }
-//        return queuedReservations;
-//    }
-
     @Override
     synchronized int handleSubmitTaskLaunchRequest(TaskSpec taskToBeLaucnhed) {
         if (activeTasks < maxActiveTasks) {
@@ -85,7 +55,7 @@ public class FifoTaskScheduler extends TaskScheduler {
             }
             makeTaskRunnable(taskToBeLaucnhed);
             ++activeTasks;
-            LOG.debug("Making task for request " + taskToBeLaucnhed.requestId + " runnable (" +
+            LOG.debug("Making task: " + taskToBeLaucnhed.taskSpec.taskId + " for request " + taskToBeLaucnhed.requestId + " runnable (" +
                     activeTasks + " of " + maxActiveTasks + " task slots currently filled)");
             return 0;
         }
@@ -119,7 +89,7 @@ public class FifoTaskScheduler extends TaskScheduler {
     @Override
     protected void handleTaskFinished(String requestId, String taskId, THostPort schedulerAddress, InetSocketAddress backendAddress) {
         //Attempt to fetch a new task
-        LOG.debug("Node monitor now have an idle spot open, attempting to make reservation for fetching a new task from Pigeon scheduler: " + schedulerAddress);
+        LOG.debug("Worker: " + backendAddress + " now have an idle spot open, attempting to fetch a new task from scheduler: " + schedulerAddress);
 
         TaskSpec reservation = new TaskSpec(requestId, taskId, schedulerAddress, backendAddress);
         try {
@@ -141,14 +111,13 @@ public class FifoTaskScheduler extends TaskScheduler {
      *
      * The parameters {@code lastExecutedRequestId} and {@code lastExecutedTaskId} are used purely
      * for logging purposes, to determine how long the node monitor spends trying to find a new
-     * task to execute. This method needs to be synchronized to prevent a race condition with
-     * {@link handleSubmitTaskReservation}.
+     * task to execute. This method needs to be synchronized to prevent a race condition with todo:?
      */
     private synchronized void attemptTaskLaunch(
             String lastExecutedRequestId, String lastExecutedTaskId) {
         TaskSpec reservation = taskReservations.poll();
         if (reservation != null) {
-            LOG.debug("Taking next task(reservation) queued at this node monitor to be launched");
+//            LOG.debug("Taking next task(reservation) queued at this node monitor to be launched");
             reservation.previousRequestId = lastExecutedRequestId;
             reservation.previousTaskId = lastExecutedTaskId;
             makeTaskRunnable(reservation);

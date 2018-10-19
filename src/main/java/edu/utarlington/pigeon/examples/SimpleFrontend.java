@@ -71,6 +71,9 @@ public class SimpleFrontend implements FrontendService.Iface {
     public static final String TASK_DURATION_MILLIS = "task_duration_millis";
     public static final int DEFAULT_TASK_DURATION_MILLIS = 100;
 
+    public static final String TASK_DURATION_MILLIS_LOW_P = "task_duration_millis_L";
+    public static final int DEFAULT_TASK_DURATION_MILLIS_LOW_P = 1000;
+
     /** Host and port where scheduler is running. */
     public static final String SCHEDULER_HOST = "scheduler_host";
     public static final String DEFAULT_SCHEDULER_HOST = "localhost";
@@ -83,30 +86,38 @@ public class SimpleFrontend implements FrontendService.Iface {
     private class JobLaunchRunnable implements Runnable {
         private int tasksPerJob;
         private int taskDurationMillis;
+        private int taskDurationMillis_LP;
 
-        public JobLaunchRunnable(int tasksPerJob, int taskDurationMillis) {
+        public JobLaunchRunnable(int tasksPerJob, int taskDurationMillis, int taskDurationMillis_LP) {
             this.tasksPerJob = tasksPerJob;
             this.taskDurationMillis = taskDurationMillis;
+            this.taskDurationMillis_LP = taskDurationMillis_LP;
         }
 
         @Override
         public void run() {
             // Generate tasks in the format expected by Sparrow. First, pack task parameters.
-            ByteBuffer message = ByteBuffer.allocate(4);
-            message.putInt(taskDurationMillis);
 
             List<TTaskSpec> tasks = new ArrayList<TTaskSpec>();
             for (int taskId = 0; taskId < tasksPerJob; taskId++) {
                 TTaskSpec spec = new TTaskSpec();
-                spec.setTaskId(Integer.toString(taskId));
-                spec.setMessage(message.array());
-                //HT or LT
-                spec.setIsHT(false);
-//                if(taskId % 2 == 0)
-//                    spec.setIsHT(true);
-//                else
-//                    spec.setIsHT(false);
+                ByteBuffer message = ByteBuffer.allocate(4);
 
+                spec.setTaskId(Integer.toString(taskId));
+
+                //todo: TEST 1) All low priority jobs should be launched only at LW
+//                spec.setIsHT(false);
+
+                //todo: TEST 2) Even tasks should be only launched at LW; odd tasks can be launched either on LW or HW
+                if(taskId % 2 == 0) {
+                    spec.setIsHT(false);
+                    message.putInt(taskDurationMillis_LP);
+                } else {
+                    spec.setIsHT(true);
+                    message.putInt(taskDurationMillis);
+                }
+
+                spec.setMessage(message.array());
                 tasks.add(spec);
             }
             long start = System.currentTimeMillis();
@@ -156,6 +167,7 @@ public class SimpleFrontend implements FrontendService.Iface {
                     " milliseconds and running experiment for " + experimentDurationS + " seconds.");
             int tasksPerJob = conf.getInt(TASKS_PER_JOB, DEFAULT_TASKS_PER_JOB);
             int taskDurationMillis = conf.getInt(TASK_DURATION_MILLIS, DEFAULT_TASK_DURATION_MILLIS);
+            int taskDurationMillis_LP = conf.getInt(TASK_DURATION_MILLIS_LOW_P, DEFAULT_TASK_DURATION_MILLIS_LOW_P);
 
             int schedulerPort = conf.getInt(SCHEDULER_PORT,
                     SchedulerThrift.DEFAULT_SCHEDULER_THRIFT_PORT);
@@ -163,7 +175,7 @@ public class SimpleFrontend implements FrontendService.Iface {
             client = new PigeonFrontendClient();
             client.initialize(new InetSocketAddress(schedulerHost, schedulerPort), APPLICATION_ID, this);
 
-            JobLaunchRunnable runnable = new JobLaunchRunnable(tasksPerJob, taskDurationMillis);
+            JobLaunchRunnable runnable = new JobLaunchRunnable(tasksPerJob, taskDurationMillis, taskDurationMillis_LP);
             ScheduledThreadPoolExecutor taskLauncher = new ScheduledThreadPoolExecutor(1);
             taskLauncher.scheduleAtFixedRate(runnable, 0, arrivalPeriodMillis, TimeUnit.MILLISECONDS);
 
