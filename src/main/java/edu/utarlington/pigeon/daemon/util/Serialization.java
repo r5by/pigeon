@@ -20,6 +20,7 @@
 package edu.utarlington.pigeon.daemon.util;
 
 import com.google.common.base.Optional;
+import edu.utarlington.pigeon.thrift.THostPort;
 
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;

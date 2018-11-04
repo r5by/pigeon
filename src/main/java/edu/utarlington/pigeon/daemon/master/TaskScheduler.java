@@ -17,21 +17,21 @@
  * limitations under the License.
  */
 
-package edu.utarlington.pigeon.daemon.nodemonitor;
+package edu.utarlington.pigeon.daemon.master;
 
-import com.google.common.collect.Lists;
+import edu.utarlington.pigeon.daemon.scheduler.Scheduler;
 import edu.utarlington.pigeon.daemon.util.Network;
-//import edu.utarlington.pigeon.thrift.TEnqueueTaskReservationsRequest;
+import edu.utarlington.pigeon.daemon.util.Serialization;
 import edu.utarlington.pigeon.thrift.*;
 import org.apache.commons.configuration.Configuration;
 import org.apache.log4j.Logger;
 
 import java.net.InetSocketAddress;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-
-import edu.utarlington.pigeon.daemon.scheduler.Scheduler;
 
 /**
  * A TaskScheduler is a buffer that holds task reservations until an application backend is
@@ -54,6 +54,9 @@ public abstract class TaskScheduler {
         public InetSocketAddress schedulerAddress;
         public InetSocketAddress appBackendAddress;
 
+        //Used by recursive service: notify the scheduler master node completed the request identified by requestId
+        public THostPort master;
+
         /**
          * ID of the task that previously ran in the slot this task is using. Used
          * to track how long it takes to fill an empty slot on a slave. Empty if this task was launched
@@ -67,16 +70,24 @@ public abstract class TaskScheduler {
         /** For pigeon, taskSpec is filled in when nm get the launch task request*/
         public TTaskLaunchSpec taskSpec;
 
-        /** Used to construct a dummy reservation to stimulate TaskLaunchService fetching a new task from Pigeon scheduler */
-        public TaskSpec(String previousRequestId, String previousTaskId, THostPort schedulerAddress, InetSocketAddress appBackendAddress) {
-            requestId = previousRequestId;
+        /**
+         * Used to construct a dummy reservation to stimulate TaskLaunchService notify Pigeon scheduler the tasks for the request are completed
+         */
+        public TaskSpec(String appId, String requestId, InetSocketAddress schedulerAddr) {
+            this.appId = appId;
+            this.requestId = requestId;
+            this.schedulerAddress = schedulerAddr;
+        }
+
+        public TaskSpec(String appId, String previousRequestId, String previousTaskId, THostPort schedulerAddress, InetSocketAddress appBackendAddress) {
+            this.appId = appId;
             this.previousRequestId = previousRequestId;
             this.previousTaskId = previousTaskId;
             this.schedulerAddress = Network.thriftToSocketAddress(schedulerAddress);
             this.appBackendAddress = appBackendAddress;
         }
 
-        public TaskSpec(TLaunchTaskRequest request, InetSocketAddress appBackendAddress) {
+        public TaskSpec(TLaunchTasksRequest request, InetSocketAddress appBackendAddress) {
             appId = request.getAppID();
             user = request.getUser();
             requestId = request.getRequestID();
@@ -91,15 +102,22 @@ public abstract class TaskScheduler {
 
     private final static Logger LOG = Logger.getLogger(TaskScheduler.class);
 //    private final static Logger AUDIT_LOG = Logging.getAuditLogger(TaskScheduler.class);
-    private String ipAddress;
+    protected String ipAddress;
 
     protected Configuration conf;
+
     private final BlockingQueue<TaskSpec> runnableTaskQueue =
             new LinkedBlockingQueue<TaskSpec>();
 
+    /**
+     * High/low priority task list
+     */
+    protected Queue<TLaunchTasksRequest> HTQ = new LinkedList<TLaunchTasksRequest>();
+    protected Queue<TLaunchTasksRequest> LTQ = new LinkedList<TLaunchTasksRequest>();
+
     /** Initialize the task scheduler, passing it the current available resources
      *  on the machine. */
-    void initialize(Configuration conf, int nodeMonitorPort) {
+    void initialize(Configuration conf) {
         this.conf = conf;
         this.ipAddress = Network.getIPAddress(conf);
     }
@@ -124,20 +142,21 @@ public abstract class TaskScheduler {
         return runnableTaskQueue.size();
     }
 
-    void tasksFinished(List<TFullTaskId> finishedTasks, InetSocketAddress backendAddress) {
+    boolean tasksFinished(List<TFullTaskId> finishedTasks, InetSocketAddress backendAddress, PriorityType workerType) {
+        boolean isIdle = false;
         for (TFullTaskId t : finishedTasks) {
 //            AUDIT_LOG.info(Logging.auditEventString("task_completed", t.getRequestId(), t.getTaskId()));
-//            LOG.debug("Task: " + t.taskId + " for request: " + t.requestId + " has finished by worker:" + backendAddress);
-            handleTaskFinished(t.getRequestId(), t.getTaskId(), t.getSchedulerAddress(), backendAddress);
+             isIdle = handleTaskFinished(t.getAppId(), t.getRequestId(), t.getTaskId(), t.getSchedulerAddress(), backendAddress, workerType);
         }
+        return isIdle;
     }
 
-    void noTaskForReservation(TaskSpec taskReservation) {
+    void noTaskForReservation(String appId, String requestId, InetSocketAddress schedulerAddr, THostPort master) {
 //        AUDIT_LOG.info(Logging.auditEventString("node_monitor_get_task_no_task",
 //                taskReservation.requestId,
 //                taskReservation.previousRequestId,
 //                taskReservation.previousTaskId));
-        handleNoTaskForReservation(taskReservation);
+        handleNoTasksReservations(appId, requestId, schedulerAddr, master);
     }
 
     protected void makeTaskRunnable(TaskSpec task) {
@@ -149,22 +168,14 @@ public abstract class TaskScheduler {
         }
     }
 
-//    public synchronized void submitTaskReservations(TLaunchTaskRequest request,
-//                                                    InetSocketAddress appBackendAddress) {
-//        TaskSpec reservation = new TaskSpec(request, appBackendAddress);
-//        int queuedReservations = handleSubmitTaskReservation(reservation);
-//        LOG.debug("reservation enqueued at " + ipAddress + " for " + request.requestID + "Queued reservations: " + queuedReservations);
-//
-//    }
-
-    public synchronized int submitLaunchTaskRequest(TLaunchTaskRequest request,
-                                                        InetSocketAddress appBackendAddress) {
+    public synchronized void submitLaunchTaskRequest(TLaunchTasksRequest request,
+                                                    InetSocketAddress appBackendAddress) {
         TaskSpec taskToBeLaunched = new TaskSpec(request, appBackendAddress);
-        LOG.debug("Launching task: " + taskToBeLaunched.taskSpec.taskId + " for request: " + request.requestID);
-        return handleSubmitTaskLaunchRequest(taskToBeLaunched);
+        LOG.debug("Launching task_" + taskToBeLaunched.taskSpec.taskId + " for request: " + request.requestID);
+        handleSubmitTaskLaunchRequest(taskToBeLaunched);
     }
 
-    private TTaskLaunchSpec unWrapLaunchTaskRequest(TLaunchTaskRequest request) {
+    private TTaskLaunchSpec unWrapLaunchTaskRequest(TLaunchTasksRequest request) {
         if(request.tasksToBeLaunched != null && request.tasksToBeLaunched.size() == 1)
             return request.tasksToBeLaunched.get(0);
         else {//TODO: Handling more than one tasks
@@ -185,7 +196,7 @@ public abstract class TaskScheduler {
      * @param taskToBeLaucnhed
      * @return
      */
-    abstract int handleSubmitTaskLaunchRequest(TaskSpec taskToBeLaucnhed);
+    abstract void handleSubmitTaskLaunchRequest(TaskSpec taskToBeLaucnhed);
 
     /**
      * Cancels all task reservations with the given request id. Returns the number of task
@@ -196,19 +207,25 @@ public abstract class TaskScheduler {
     /**
      * Handles the completion of a task that has finished executing.
      */
-    protected abstract void handleTaskFinished(String requestId, String taskId, THostPort schedulerAddress, InetSocketAddress backendAddress);
+//    protected abstract boolean handleTaskFinished(String requestId, String taskId, THostPort schedulerAddress, InetSocketAddress backendAddress);
+    protected abstract boolean handleTaskFinished(String appId, String requestId, String taskId, THostPort schedulerAddress, InetSocketAddress backendAddress, PriorityType workerType);
 
     /**
      * Handles the case when the node monitor tried to launch a task for a reservation, but
      * the corresponding scheduler didn't return a task (typically because all of the corresponding
      * job's tasks have been launched).
      */
-    protected abstract void handleNoTaskForReservation(TaskSpec taskSpec);
+    protected abstract void handleNoTasksReservations(String appId, String requestId, InetSocketAddress schedulerAddr, THostPort master);
 
     /**
-     * Returns the maximum number of active tasks allowed (the number of slots).
+     * Returns the maximum number of active tasks allowed (the number of workers).
      *
      * -1 signals that the scheduler does not enforce a maximum number of active tasks.
      */
-    abstract int getMaxActiveTasks();
+    protected abstract int getMaxActiveTasks();
+
+    /**
+     * Enqueue the task at either HTQ or LTQ based on the scheduler's policy
+     */
+    protected abstract void enqueue(TLaunchTasksRequest launchTasksRequest);
 }

@@ -20,52 +20,18 @@ include 'types.thrift'
 
 namespace java edu.utarlington.pigeon.thrift
 
-# SchedulerService is used by application frontends to communicate with Pigeon
-# and place jobs.
-service SchedulerService {
-  # Register a frontend for the given application.
-  bool registerFrontend(1: string app, 2: string socketAddress);
-
-  # Submit a job composed of a list of individual tasks.
-  void submitJob(1: types.TSchedulingRequest req) throws (1: types.IncompleteRequestException e);
-
-  # Send a message to be delivered to the frontend for {app} pertaining
-  # to the task {taskId}. The {status} field allows for application-specific
-  # status enumerations. Right now this is used only for Spark, which relies on
-  # the scheduler to send task completion messages to frontends.
-  void sendFrontendMessage(1: string app, 2: types.TFullTaskId taskId,
-                           3: i32 status, 4: binary message);
-}
-
-service GetTaskService {
-  # Called by a node monitor when it has available responses to run a task. Always called in
-  # response to an enqueueTask() request from this scheduler, requestId specifies the ID given
-  # in that enqueueTask() request. Currently, we only support returning 0 or 1 task
-  # specs, where 0 signals that the given request has no more tasks that can be launched on the
-  # node.
-  # TODO: Add a numTasks parameter to signal how many slots are free, and support returning more than 1 tasks.
-  types.TLaunchTaskRequest getTask(1: string requestId, 2: types.THostPort nodeMonitorAddress);
-}
-
 # A service used by application backends to coordinate with Pigeon.
-service NodeMonitorService {
-  # Register this machine as a backend for the given application.
-  bool registerBackend(1: string app, 2: string listenSocket);
-
-  # Inform the NodeMonitor that a particular task has finished
-  void tasksFinished(1: list<types.TFullTaskId> tasks);
-
-  # See SchedulerService.sendFrontendMessage
-  void sendFrontendMessage(1: string app, 2: types.TFullTaskId taskId,
-                           3: i32 status, 4: binary message);
-}
-
-# A service that backends are expected to extend. Handles communication
-# from a NodeMonitor.
-service BackendService {
-  void launchTask(1: binary message, 2: types.TFullTaskId taskId,
-                  3: types.TUserGroupInfo user);
-}
+//service NodeMonitorService {
+//  # Register this machine as a backend for the given application.
+//  bool registerBackend(1: string app, 2: string listenSocket);
+//
+//  # Inform the NodeMonitor that a particular task has finished
+//  void tasksFinished(1: list<types.TFullTaskId> tasks);
+//
+//  # See SchedulerService.sendFrontendMessage
+//  void sendFrontendMessage(1: string app, 2: types.TFullTaskId taskId,
+//                           3: i32 status, 4: binary message);
+//}
 
 # A service that frontends are expected to extend. Handles communication from
 # a Scheduler.
@@ -73,20 +39,6 @@ service FrontendService {
   # See SchedulerService.sendFrontendMessage
   void frontendMessage(1: types.TFullTaskId taskId, 2: i32 status,
                        3: binary message);
-}
-
-# The InternalService exposes state about application backends to other Pigeon daemons.
-service InternalService {
-  # Enqueues a reservation to launch the given number of tasks. The NodeMonitor sends
-  # a GetTask() RPC to the given schedulerAddress when it is ready to launch a task, for each
-  # enqueued task reservation. Returns whether or not the task was successfully enqueued.
-//  bool enqueueTaskReservations(1: types.TEnqueueTaskReservationsRequest request);
-
-  # Cancels reservations for jobs for which all tasks have already been launched.
-//  void cancelTaskReservations(1: types.TCancelTaskReservationsRequest request);
-
-  # Pigeon don't need reservations, only need to send task launch request to node monitor from scheduler
-  bool launchTaskRequest(1: types.TLaunchTaskRequest launchTaskRequest);
 }
 
 service SchedulerStateStoreService {
@@ -105,4 +57,60 @@ service StateStoreService {
 # Service to use for debugging network latencies.
 service PongService {
   string ping(1: string data);
+}
+
+#####################################################################
+#                   Pigeon Services                                 #
+#####################################################################
+
+# SchedulerService is used by application frontends to communicate with Pigeon
+# and place jobs. (Service port by default: 20503)
+service SchedulerService {
+  # Register a frontend for the given application.
+  bool registerFrontend(1: string app, 2: string socketAddress);
+
+  # Submit a job composed of a list of individual tasks.
+  void submitJob(1: types.TSchedulingRequest req) throws (1: types.IncompleteRequestException e);
+
+  # Send a message to be delivered to the frontend for {app} pertaining
+  # to the task {taskId}. The {status} field allows for application-specific
+  # status enumerations. Right now this is used only for Spark, which relies on
+  # the scheduler to send task completion messages to frontends.
+  void sendFrontendMessage(1: string app, 2: types.TFullTaskId taskId,
+                           3: i32 status, 4: binary message);
+}
+
+# The InternalService is used by Pigeon scheduler to communicate with master node
+service InternalService {
+  # Pigeon don't need reservations, only need to send task launch request to a randomly selected master
+  bool launchTasksRequest(1: types.TLaunchTasksRequest launchTaskRequest) throws (1: types.ServerNotReadyException e);
+}
+
+# A service used by application backends to coordinate with its master node (service port by default: 20501)
+service MasterService {
+  # Register this machine as a backend for the given application.
+  # type indicates whether it's used as a high priority (1) or low priority (0) worker
+  # TODO: Register the node with master node based on its locality (e.g. same rack with the traget master node)
+  bool registerBackend(1: string app, 2: string listenSocket, 3: i32 type);
+
+  # Inform the Master node that a particular task has finished
+  void taskFinished(1: list<types.TFullTaskId> tasks, 2:types.THostPort worker);
+
+  # See SchedulerService.sendFrontendMessage
+  # todo: No use for now, maybe we should consider to remove this part for Pigeon?
+  void sendFrontendMessage(1: string app, 2: types.TFullTaskId taskId,
+                           3: i32 status, 4: binary message);
+}
+
+# The recursive way of master node notifying task completed meg to scheduler (service port by default: 20507)
+service RecursiveService {
+
+  # The delegated master node will hold untill all tasks related to the same request completed to notify the scheduler
+   void tasksFinished(1: string requestID, 2:types.THostPort master);
+}
+
+# A service that backends are expected to extend. Handles communication from a master.
+service BackendService {
+  void launchTask(1: binary message, 2: types.TFullTaskId taskId,
+                  3: types.TUserGroupInfo user);
 }

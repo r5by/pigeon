@@ -87,7 +87,7 @@ struct TSchedulingRequest {
  # 1: string requestId;
 #}
 
-struct TLaunchTaskRequest {
+struct TLaunchTasksRequest {
     1: string appID;
     2: TUserGroupInfo user;
     3: string requestID;
@@ -104,6 +104,8 @@ struct TTaskLaunchSpec {
 
   # Description of the task passed on to the application backend (opaque to Pigeon).
   2: binary message;
+
+  3: bool isHT;
 }
 
 struct LoadSpec {
@@ -119,3 +121,6 @@ struct TNodeState {
 
 # PIGEON
 # TODO: add pigeon required service types here
+exception ServerNotReadyException {
+    1: string message; # Thrown when master has less than one HW/LW
+}

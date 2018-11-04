@@ -17,10 +17,11 @@
  * limitations under the License.
  */
 
-package edu.utarlington.pigeon.daemon.nodemonitor;
+package edu.utarlington.pigeon.daemon.master;
 
 import com.google.common.base.Optional;
 import edu.utarlington.pigeon.daemon.PigeonConf;
+import edu.utarlington.pigeon.daemon.util.Network;
 import edu.utarlington.pigeon.daemon.util.Serialization;
 import edu.utarlington.pigeon.daemon.util.TServers;
 import edu.utarlington.pigeon.thrift.*;
@@ -34,19 +35,18 @@ import java.nio.ByteBuffer;
 import java.util.List;
 
 /**
- * This class extends the thrift Sparrow node monitor interface. It wraps the
- * {@link NodeMonitor} class and delegates most calls to that class.
+ * This class extends the thrift Pigeon master interface. It wraps the
+ * {@link PigeonMaster} class and delegates most calls to that class.
  */
-public class NodeMonitorThrift implements NodeMonitorService.Iface,
-        InternalService.Iface {
+public class PigeonMasterThrift implements MasterService.Iface, InternalService.Iface {
     // Defaults if not specified by configuration
-    public final static int DEFAULT_NM_THRIFT_PORT = 20501;
-    public final static int DEFAULT_NM_THRIFT_THREADS = 32;
+    public final static int DEFAULT_MASTER_THRIFT_PORT = 20501;
+    public final static int DEFAULT_MASTER_THRIFT_THREADS = 8;
     public final static int DEFAULT_INTERNAL_THRIFT_PORT = 20502;
     public final static int DEFAULT_INTERNAL_THRIFT_THREADS = 8;
 
-    private NodeMonitor nodeMonitor = new NodeMonitor();
-    // The socket addr (ip:port) where we listen for requests from other Sparrow daemons.
+    private PigeonMaster pigeonMaster = new PigeonMaster();
+    // The socket addr (ip:port) where we listen for requests from other Pigeon daemons.
     // Used when registering backends with the state store.
     private InetSocketAddress internalAddr;
 
@@ -60,17 +60,17 @@ public class NodeMonitorThrift implements NodeMonitorService.Iface,
      * within this class under certain configurations (e.g. a config file specifies
      * multiple NodeMonitors).
      */
-    public void initialize(Configuration conf, int nmPort, int internalPort)
+    public void initialize(Configuration conf, int masterPort, int internalPort)
             throws IOException {
-        nodeMonitor.initialize(conf, internalPort);
+        pigeonMaster.initialize(conf, internalPort);
 
         // Setup application-facing agent service.
-        NodeMonitorService.Processor<NodeMonitorService.Iface> processor =
-                new NodeMonitorService.Processor<NodeMonitorService.Iface>(this);
+        MasterService.Processor<MasterService.Iface> processor =
+                new MasterService.Processor<MasterService.Iface>(this);
 
-        int threads = conf.getInt(PigeonConf.NM_THRIFT_THREADS,
-                DEFAULT_NM_THRIFT_THREADS);
-        TServers.launchThreadedThriftServer(nmPort, threads, processor);
+        int threads = conf.getInt(PigeonConf.MASTER_THRIFT_THREADS,
+                DEFAULT_MASTER_THRIFT_THREADS);
+        TServers.launchThreadedThriftServer(masterPort, threads, processor);
 
         // Setup internal-facing agent service.
         InternalService.Processor<InternalService.Iface> internalProcessor =
@@ -80,43 +80,31 @@ public class NodeMonitorThrift implements NodeMonitorService.Iface,
                 DEFAULT_INTERNAL_THRIFT_THREADS);
         TServers.launchThreadedThriftServer(internalPort, internalThreads, internalProcessor);
 
-        internalAddr = new InetSocketAddress(InetAddress.getLocalHost(), internalPort);
+//        internalAddr = new InetSocketAddress(InetAddress.getLocalHost(), internalPort);
+        internalAddr = new InetSocketAddress(Network.getHostName(conf), internalPort);
     }
 
     @Override
-    public boolean registerBackend(String app, String backendSocket) throws TException {
+    public boolean registerBackend(String app, String backendSocket, int type) throws TException {
         Optional<InetSocketAddress> backendAddr = Serialization.strToSocket(backendSocket);
         if (!backendAddr.isPresent()) {
             return false; // TODO: maybe we should throw some exception here?
         }
-        return nodeMonitor.registerBackend(app, internalAddr, backendAddr.get());
+        return pigeonMaster.registerBackend(app, internalAddr, backendAddr.get(), type);
     }
 
     @Override
-    public void sendFrontendMessage(String app, TFullTaskId taskId,
-                                    int status, ByteBuffer message) throws TException {
-        nodeMonitor.sendFrontendMessage(app, taskId, status, message);
+    public void taskFinished(List<TFullTaskId> task, THostPort worker) throws TException {
+        pigeonMaster.taskFinished(task, worker);
     }
 
     @Override
-    public void tasksFinished(List<TFullTaskId> tasks) {
-        nodeMonitor.tasksFinished(tasks);
+    public boolean launchTasksRequest(TLaunchTasksRequest launchTasksRequest) throws TException {
+        return pigeonMaster.launchTasksRequest(launchTasksRequest);
     }
 
     @Override
-    public boolean launchTaskRequest(TLaunchTaskRequest launchTaskRequest) throws TException {
-        return nodeMonitor.launchTaskRequest(launchTaskRequest);
+    public void sendFrontendMessage(String app, TFullTaskId taskId, int status, ByteBuffer message) throws TException {
+        pigeonMaster.sendFrontendMessage(app, taskId, status, message);
     }
-
-//    @Override
-//    public boolean enqueueTaskReservations(TEnqueueTaskReservationsRequest request)
-//            throws TException {
-//        return nodeMonitor.enqueueTaskReservations(request);
-//    }
-//
-//    @Override
-//    public void cancelTaskReservations(TCancelTaskReservationsRequest request)
-//            throws TException {
-//        nodeMonitor.cancelTaskReservations(request.requestId);
-//    }
 }

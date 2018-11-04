@@ -19,10 +19,7 @@
 
 package edu.utarlington.pigeon.daemon.util;
 
-import edu.utarlington.pigeon.thrift.BackendService;
-import edu.utarlington.pigeon.thrift.GetTaskService;
-import edu.utarlington.pigeon.thrift.NodeMonitorService;
-import edu.utarlington.pigeon.thrift.SchedulerService;
+import edu.utarlington.pigeon.thrift.*;
 import org.apache.log4j.Logger;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
@@ -43,14 +40,19 @@ public class TClients {
     private final static Logger LOG = Logger.getLogger(TClients.class);
 
     //=======================================
-    // Node monitor services clients
+    // Master services clients
     //=======================================
-    public static NodeMonitorService.Client createBlockingNmClient(String host, int port)
-        throws IOException {
-        return createBlockingNmClient(host, port, 0);
+    public static MasterService.Client createBlockingMasterClient(
+            InetSocketAddress socket) throws IOException {
+        return createBlockingMasterClient(socket.getAddress().getHostAddress(), socket.getPort());
     }
 
-    public static NodeMonitorService.Client createBlockingNmClient(String host, int port,
+    public static MasterService.Client createBlockingMasterClient(String host, int port)
+            throws IOException {
+        return createBlockingMasterClient(host, port, 0);
+    }
+
+    public static MasterService.Client createBlockingMasterClient(String host, int port,
                                                                    int timeout)
             throws IOException {
         TTransport tr = new TFramedTransport(new TSocket(host, port, timeout));
@@ -61,20 +63,19 @@ public class TClients {
             throw new IOException(e);
         }
         TProtocol proto = new TBinaryProtocol(tr);
-        NodeMonitorService.Client client = new NodeMonitorService.Client(proto);
+        MasterService.Client client = new MasterService.Client(proto);
         return client;
     }
 
-
     //=======================================
-    // GetTask services clients
+    // Recursive services clients
     //=======================================
-    public static GetTaskService.Client createBlockingGetTaskClient(
+    public static RecursiveService.Client createBlockingRecursiveClient(
             String host, int port) throws IOException {
-        return createBlockingGetTaskClient(host, port, 0);
+        return createBlockingRecursiveClient(host, port, 0);
     }
 
-    public static GetTaskService.Client createBlockingGetTaskClient(
+    public static RecursiveService.Client createBlockingRecursiveClient(
             String host, int port, int timeout) throws IOException {
         TTransport tr = new TFramedTransport(new TSocket(host, port, timeout));
         try {
@@ -84,7 +85,7 @@ public class TClients {
             throw new IOException(e);
         }
         TProtocol proto = new TBinaryProtocol(tr);
-        GetTaskService.Client client = new GetTaskService.Client(proto);
+        RecursiveService.Client client = new RecursiveService.Client(proto);
         return client;
     }
 

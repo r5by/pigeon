@@ -61,4 +61,11 @@ public class Network {
             return "IP UNKNOWN";
         }
     }
+
+    /**
+     * Return a new socket address by the ip address of {@param addr} with the port number of {@param port}
+     */
+    public static InetSocketAddress constructSocket(InetSocketAddress addr, int port) {
+        return new InetSocketAddress(addr.getAddress(), port);
+    }
 }

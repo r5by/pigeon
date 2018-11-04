@@ -19,14 +19,11 @@
 
 package edu.utarlington.pigeon.examples;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
-import edu.utarlington.pigeon.daemon.nodemonitor.NodeMonitorThrift;
-import edu.utarlington.pigeon.daemon.util.TClients;
-import edu.utarlington.pigeon.daemon.util.TServers;
-import edu.utarlington.pigeon.thrift.BackendService;
-import edu.utarlington.pigeon.thrift.NodeMonitorService;
-import edu.utarlington.pigeon.thrift.TFullTaskId;
-import edu.utarlington.pigeon.thrift.TUserGroupInfo;
+import edu.utarlington.pigeon.daemon.PigeonConf;
+import edu.utarlington.pigeon.daemon.util.*;
+import edu.utarlington.pigeon.thrift.*;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import org.apache.commons.configuration.Configuration;
@@ -38,7 +35,9 @@ import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -54,8 +53,17 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class SimpleBackend implements BackendService.Iface {
     private static final Logger LOG = Logger.getLogger(SimpleBackend.class);
 
+    /** Address of this worker its master node can reach */
+    private InetSocketAddress address;
+
     private static final String LISTEN_PORT = "listen_port";
     private static final int DEFAULT_LISTEN_PORT = 20101;
+
+    /** The type of this worker for Pigeon, currently we support two types: HW(1) or LW(0) */
+    private int workerType;
+    private static final String WORKER_TYPE ="worker.type";
+
+    private static final String MASTER_SOCKET = "master.socket";
 
     /**
      * Each task is launched in its own thread from a thread pool with WORKER_THREADS threads,
@@ -66,11 +74,12 @@ public class SimpleBackend implements BackendService.Iface {
     private static final String APP_ID = "sleepApp";
 
     /** Configuration parameters to specify where the node monitor is running. */
-    private static final String NODE_MONITOR_HOST = "node_monitor_host";
-    private static final String DEFAULT_NODE_MONITOR_HOST = "localhost";
-    private static String NODE_MONITOR_PORT = "node_monitor_port";
+//    private static final String NODE_MONITOR_HOST = "node_monitor_host";
+//    private static final String DEFAULT_NODE_MONITOR_HOST = "localhost";
+//    private static String NODE_MONITOR_PORT = "node_monitor_port";
 
-    private static NodeMonitorService.Client client;
+
+    private static MasterService.Client client;
     private static final ExecutorService executor =
             Executors.newFixedThreadPool(WORKER_THREADS);
 
@@ -95,8 +104,10 @@ public class SimpleBackend implements BackendService.Iface {
             while (true) {
                 try {
                     TFullTaskId task = finishedTasks.take();
-                    LOG.debug("Backend has completed task: " + task.taskId + " for request:" + task.requestId);
-                    client.tasksFinished(Lists.newArrayList(task));
+                    LOG.debug("Worker: " + address + " has completed task_" + task.taskId + " for request:" + task.requestId);
+
+                    //todo
+                    client.taskFinished(Lists.newArrayList(task), Network.socketAddressToThrift(address));
                 } catch (InterruptedException e) {
                     LOG.error("Error taking a task from the queue: " + e.getMessage());
                 } catch (TException e) {
@@ -123,7 +134,7 @@ public class SimpleBackend implements BackendService.Iface {
             } catch (InterruptedException e) {
                 LOG.error("Interrupted while sleeping: " + e.getMessage());
             }
-            LOG.debug("Task completed in " + (System.currentTimeMillis() - startTime) + "ms");
+            LOG.debug("Task_" + taskId.taskId + " has completed in " + (System.currentTimeMillis() - startTime) + "ms");
             finishedTasks.add(taskId);
         }
     }
@@ -133,17 +144,34 @@ public class SimpleBackend implements BackendService.Iface {
      *
      * Also starts a thread that handles finished tasks (by sending an RPC to the node monitor).
      */
-    public void initialize(int listenPort, String nodeMonitorHost, int nodeMonitorPort) {
-        // Register server.
+    public void initialize(int listenPort, Configuration conf) {
+//        int nodeMonitorPort = conf.getInt(NODE_MONITOR_PORT, NodeMonitorThrift.DEFAULT_NM_THRIFT_PORT);
+//        String nodeMonitorHost = conf.getString(NODE_MONITOR_HOST, DEFAULT_NODE_MONITOR_HOST);
+
+        address = new InetSocketAddress(Network.getHostName(conf), listenPort);
+        workerType = conf.getInt(WORKER_TYPE, 0);
+
+        Set<InetSocketAddress> masterSocket = ConfigUtil.parseBackends(conf, MASTER_SOCKET);
+
+        if(masterSocket.isEmpty()) {
+            LOG.error("Master IP and port must be identified in this worker's configuration file!");
+        } else if(masterSocket.size() > 1) {
+            LOG.error("A worker cannot belong to multiple master nodes!");
+        }
+
+        InetSocketAddress master = masterSocket.iterator().next();
+        LOG.debug("Master socket: " + master + " has been connect to backend worker at: " + address);
+
+        // Register services with its master.
         try {
-            client = TClients.createBlockingNmClient(nodeMonitorHost, nodeMonitorPort);
+            client = TClients.createBlockingMasterClient(master);
         } catch (IOException e) {
             LOG.debug("Error creating Thrift client: " + e.getMessage());
         }
 
         try {
 //      client.registerBackend(APP_ID, "localhost:" + listenPort);
-            client.registerBackend(APP_ID, nodeMonitorHost+":"+listenPort);
+            client.registerBackend(APP_ID, address.toString(), workerType);
             LOG.debug("Client successfully registered");
         } catch (TException e) {
             LOG.debug("Error while registering backend: " + e.getMessage());
@@ -154,13 +182,12 @@ public class SimpleBackend implements BackendService.Iface {
 
     @Override
     public void launchTask(ByteBuffer message, TFullTaskId taskId, TUserGroupInfo user) throws TException {
-        LOG.info("Launching task: " + taskId.getTaskId() + " for request: " +  taskId.requestId + " at worker, starting from system time:" + System.currentTimeMillis());
+        LOG.info("Launching task_" + taskId.getTaskId() + " for request: " +  taskId.requestId + " at worker: " + this.address +" , starting from system time:" + System.currentTimeMillis());
 
         executor.submit(new TaskRunnable(
                 taskId.requestId, taskId, message));
     }
 
-    /* Entry */
     public static void main(String[] args) throws IOException, TException {
         OptionParser parser = new OptionParser();
         parser.accepts("c", "configuration file").
@@ -190,11 +217,10 @@ public class SimpleBackend implements BackendService.Iface {
         SimpleBackend protoBackend = new SimpleBackend();
         BackendService.Processor<BackendService.Iface> processor =
                 new BackendService.Processor<BackendService.Iface>(protoBackend);
-
         int listenPort = conf.getInt(LISTEN_PORT, DEFAULT_LISTEN_PORT);
-        int nodeMonitorPort = conf.getInt(NODE_MONITOR_PORT, NodeMonitorThrift.DEFAULT_NM_THRIFT_PORT);
-        String nodeMonitorHost = conf.getString(NODE_MONITOR_HOST, DEFAULT_NODE_MONITOR_HOST);
         TServers.launchSingleThreadThriftServer(listenPort, processor);
-        protoBackend.initialize(listenPort, nodeMonitorHost, nodeMonitorPort);
+
+        //Initialize communication with its master
+        protoBackend.initialize(listenPort, conf);
     }
 }

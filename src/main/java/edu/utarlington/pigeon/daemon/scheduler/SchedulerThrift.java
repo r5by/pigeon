@@ -35,11 +35,11 @@ import java.util.List;
  * This class extends the thrift sparrow scheduler interface. It wraps the
  * {@link Scheduler} class and delegates most calls to that class.
  */
-public class SchedulerThrift implements SchedulerService.Iface, GetTaskService.Iface {
+public class SchedulerThrift implements SchedulerService.Iface, RecursiveService.Iface {
     // Defaults if not specified by configuration
     public final static int DEFAULT_SCHEDULER_THRIFT_PORT = 20503;
     private final static int DEFAULT_SCHEDULER_THRIFT_THREADS = 8;
-    public final static int DEFAULT_GET_TASK_PORT = 20507;
+    public final static int DEFAULT_RECURSIVE_SERVICE_PORT = 20507;
 
     private Scheduler scheduler = new Scheduler();
 
@@ -64,9 +64,11 @@ public class SchedulerThrift implements SchedulerService.Iface, GetTaskService.I
     //=======================================
     // GetTask Services
     //=======================================
+
+
     @Override
-    public TLaunchTaskRequest getTask(String requestID, THostPort nodeMonitorAddress) throws TException {
-        return scheduler.getTask(requestID, nodeMonitorAddress);
+    public void tasksFinished(String requestID, THostPort master) throws TException {
+        scheduler.tasksFinished(requestID, master);
     }
 
     //=======================================
@@ -82,19 +84,23 @@ public class SchedulerThrift implements SchedulerService.Iface, GetTaskService.I
         SchedulerService.Processor<SchedulerService.Iface> processor =
                 new SchedulerService.Processor<SchedulerService.Iface>(this);
 
-        int port = conf.getInt(PigeonConf.SCHEDULER_THRIFT_PORT,
+        int schedulerServicePort = conf.getInt(PigeonConf.SCHEDULER_THRIFT_PORT,
                 DEFAULT_SCHEDULER_THRIFT_PORT);
+        int recursivePort = conf.getInt(PigeonConf.RECURSIVE_SERVICE_PORT,
+                DEFAULT_RECURSIVE_SERVICE_PORT);
         int threads = conf.getInt(PigeonConf.SCHEDULER_THRIFT_THREADS,
                 DEFAULT_SCHEDULER_THRIFT_THREADS);
-        String hostname = Network.getHostName(conf);
-        InetSocketAddress addr = new InetSocketAddress(hostname, port);
-        scheduler.initialize(conf, addr);
-        TServers.launchThreadedThriftServer(port, threads, processor);
 
-        int getTaskPort = conf.getInt(PigeonConf.GET_TASK_PORT,
-                DEFAULT_GET_TASK_PORT);
-        GetTaskService.Processor<GetTaskService.Iface> getTaskprocessor =
-                new GetTaskService.Processor<GetTaskService.Iface>(this);
-        TServers.launchSingleThreadThriftServer(getTaskPort, getTaskprocessor);
+        String hostname = Network.getHostName(conf);
+        //Initialize the address passed to launchTaskRequest, later be used for master to communicate with this scheduler
+        InetSocketAddress addr = new InetSocketAddress(hostname, recursivePort);
+        scheduler.initialize(conf, addr);
+
+        TServers.launchThreadedThriftServer(schedulerServicePort, threads, processor);
+        RecursiveService.Processor<RecursiveService.Iface> recursiveServiceProcessor =
+                new RecursiveService.Processor<RecursiveService.Iface>(this);
+//        TServers.launchSingleThreadThriftServer(recursivePort, recursiveServiceProcessor);
+        TServers.launchThreadedThriftServer(recursivePort, threads, recursiveServiceProcessor);
+
     }
 }

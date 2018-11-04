@@ -19,7 +19,7 @@
 
 package edu.utarlington.pigeon.daemon;
 
-import edu.utarlington.pigeon.daemon.nodemonitor.NodeMonitorThrift;
+import edu.utarlington.pigeon.daemon.master.PigeonMasterThrift;
 import edu.utarlington.pigeon.daemon.scheduler.SchedulerThrift;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
@@ -31,8 +31,7 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 /**
- * A Pigeon Daemon includes both a scheduler and a node monitor.
- * The main() method launches a Sparrow daemon.
+ * A Pigeon Daemon includes both a scheduler and master, it needs to be launched on every scheduler/master node.
  */
 public class PigeonDaemon {
     // Eventually, we'll want to change this to something higher than debug.
@@ -53,7 +52,7 @@ public class PigeonDaemon {
         // Set up a simple configuration that logs on the console.
         BasicConfigurator.configure();
 
-        //TODO: Add pigeon logging support
+        //TODO: (Huiyang) Add pigeon logging support
 //        Logging.configureAuditLogging();
 
         String configFile = (String) options.valueOf("c");
@@ -80,20 +79,20 @@ public class PigeonDaemon {
             throw new ConfigurationException("Mutliple NodeMonitors only allowed " +
                     "in standalone deployment");
         }
-        //Setup NodeMonitor (& internal) services on each node
+        //Setup master & internal services
         if (nmPorts.length == 0) {
-            (new NodeMonitorThrift()).initialize(conf,
-                    NodeMonitorThrift.DEFAULT_NM_THRIFT_PORT,
-                    NodeMonitorThrift.DEFAULT_INTERNAL_THRIFT_PORT);
+            (new PigeonMasterThrift()).initialize(conf,
+                    PigeonMasterThrift.DEFAULT_MASTER_THRIFT_PORT,
+                    PigeonMasterThrift.DEFAULT_INTERNAL_THRIFT_PORT);
         }
-        else {
-            for (int i = 0; i < nmPorts.length; i++) {
-                (new NodeMonitorThrift()).initialize(conf,
-                        Integer.parseInt(nmPorts[i]), Integer.parseInt(inPorts[i]));
-            }
+        else {//TODO: (Huiyang) Finish this part
+//            for (int i = 0; i < nmPorts.length; i++) {
+//                (new NodeMonitorThrift()).initialize(conf,
+//                        Integer.parseInt(nmPorts[i]), Integer.parseInt(inPorts[i]));
+//            }
         }
 
-        // Setup scheduler (& GetTask() ) services on each node
+        // Setup scheduler & recursive services
         SchedulerThrift scheduler = new SchedulerThrift();
         scheduler.initialize(conf);
     }

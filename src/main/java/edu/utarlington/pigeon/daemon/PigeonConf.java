@@ -54,7 +54,7 @@ public class PigeonConf {
      * or will be left unspecified in favor of the default port. */
     public final static String INTERNAL_THRIFT_PORTS = "internal_agent.thrift.ports";
 
-    public final static String NM_THRIFT_THREADS = "agent.thrift.threads";
+    public final static String MASTER_THRIFT_THREADS = "agent.thrift.threads";
     public final static String INTERNAL_THRIFT_THREADS =
             "internal_agent.thrift.threads";
     /** Type of task scheduler to use on node monitor. Values: "fifo," "round_robin, " "priority." */
@@ -90,11 +90,13 @@ public class PigeonConf {
     /** Expects a comma-separated list of host:port pairs describing the address of the
      * internal interface of the node monitors. */
 //    public final static String STATIC_NODE_MONITORS = "static.node_monitors";
-    public final static String STATIC_NODE_MONITORS_HW = "static.node_monitors_hw";
-    public final static String STATIC_NODE_MONITORS_LW = "static.node_monitors_lw";
+    public final static String STATIC_MASTERS = "static.masters";
+//    public final static String STATIC_HIGH_PRIORITY_WORKERS = "static.hw";
+//    public final static String STATIC_LOW_PRIORITY_WORKERS = "static.lw";
+
     public final static String STATIC_APP_NAME = "static.app.name";
 
-    public static final String GET_TASK_PORT = "get_task.port";
+    public static final String RECURSIVE_SERVICE_PORT = "recursive.port";
 
     public final static String SPREAD_EVENLY_TASK_SET_SIZE = "spread_evenly_task_set_size";
     public final static int DEFAULT_SPREAD_EVENLY_TASK_SET_SIZE = 1;

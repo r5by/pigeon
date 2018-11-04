@@ -20,15 +20,12 @@
 package edu.utarlington.pigeon.daemon.scheduler;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import edu.utarlington.pigeon.daemon.PigeonConf;
 import edu.utarlington.pigeon.daemon.util.Network;
 import edu.utarlington.pigeon.daemon.util.Serialization;
 import edu.utarlington.pigeon.daemon.util.ThriftClientPool;
 import edu.utarlington.pigeon.thrift.*;
-import edu.utarlington.pigeon.thrift.InternalService.AsyncClient;
-import edu.utarlington.pigeon.thrift.InternalService.AsyncClient.launchTaskRequest_call;
 import edu.utarlington.pigeon.thrift.FrontendService.AsyncClient.frontendMessage_call;
 import org.apache.commons.configuration.Configuration;
 import org.apache.log4j.Logger;
@@ -39,9 +36,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -62,7 +57,7 @@ public class Scheduler {
             new HashMap<String, InetSocketAddress>();
 
     /** Thrift client pool for communicating with node monitors */
-    ThriftClientPool<InternalService.AsyncClient> nodeMonitorClientPool =
+    ThriftClientPool<InternalService.AsyncClient> masterClientPool =
             new ThriftClientPool<InternalService.AsyncClient>(
                     new ThriftClientPool.InternalServiceMakerFactory());
 
@@ -84,14 +79,20 @@ public class Scheduler {
      * Pigeon
      * High/low priority idle worker lists
      */
-    public List<InetSocketAddress> HIW;
-    public List<InetSocketAddress> LIW;
+//    public List<InetSocketAddress> HIW;
+//    public List<InetSocketAddress> LIW;
+    /**
+     * Pigeon
+     * Master nodes list
+      */
+    public List<InetSocketAddress> pigeonMasters;
+
     /**
      * Pigeon
      * High/low priority task list
      */
-    public final Queue<TLaunchTaskRequest> HTQ = new LinkedList<TLaunchTaskRequest>();
-    public final Queue<TLaunchTaskRequest> LTQ = new LinkedList<TLaunchTaskRequest>();
+//    public final Queue<TLaunchTasksRequest> HTQ = new LinkedList<TLaunchTasksRequest>();
+//    public final Queue<TLaunchTasksRequest> LTQ = new LinkedList<TLaunchTasksRequest>();
 
     /**
      * When a job includes SPREAD_EVENLY in the description and has this number of tasks,
@@ -119,8 +120,10 @@ public class Scheduler {
 
         state.initialize(conf);
 
-        HIW =new ArrayList<InetSocketAddress>(state.getBackends(true));
-        LIW =new ArrayList<InetSocketAddress>(state.getBackends(false));
+//        HIW =new ArrayList<InetSocketAddress>(state.getBackends(true));
+//        LIW =new ArrayList<InetSocketAddress>(state.getBackends(false));
+        pigeonMasters = new ArrayList<InetSocketAddress>(state.getMasters());
+
         requestTaskPlacers = Maps.newConcurrentMap();
     }
 
@@ -141,7 +144,7 @@ public class Scheduler {
      *  method will result in spreading the tasks for the 3 jobs across the cluster such that no
      *  more than 1 task is assigned to each machine.
      */
-    //TODO: Add evenly spread tasks constraints support for pigeon
+    //TODO: (Huiyang )Add evenly spread tasks constraints support for pigeon
 //    private TSchedulingRequest addConstraintsToSpreadTasks(TSchedulingRequest req)
 //            throws TException {
 //        LOG.info("Handling spread tasks request: " + req);
@@ -156,7 +159,6 @@ public class Scheduler {
 //        newReq.app = req.app;
 //        newReq.probeRatio = req.probeRatio;
 //
-//        //TODO: Add constraints (backends hw/lw)
 //        List<InetSocketAddress> allBackends = Lists.newArrayList();
 //        List<InetSocketAddress> backends = Lists.newArrayList();
 //        // We assume the below always returns the same order (invalid assumption?)
@@ -233,14 +235,14 @@ public class Scheduler {
         // Short-circuit case that is used for liveness checking
         if (request.tasks.size() == 0) { return; }
         if (isSpreadTasksJob(request)) {
-            //TODO: Impl constraints
+            //TODO: (Huiyang) Add constrained tasks support
 //            handleJobSubmission(addConstraintsToSpreadTasks(request));
         } else {
             handleJobSubmission(request);
         }
     }
 
-    //TODO: 1) Impl Constrained scenario 2) Audit logging support
+    //TODO: (Huiyang) 1) Impl Constrained scenario 2) Audit logging support
     public void handleJobSubmission(TSchedulingRequest request) throws TException {
 //        LOG.debug(Logging.functionCall(request));
         long start = System.currentTimeMillis();
@@ -252,10 +254,7 @@ public class Scheduler {
 
         try {
             LOG.debug("Enqueueing and sending task launch requests for request: " + requestId);
-            synchronized (state) {
-                //avoid racing condition with getTask() RPC call
-                taskPlacer.enqueueRequest(request, address);
-            }
+            taskPlacer.processRequest(request, address);
         } catch (Exception e) {
             LOG.error("Error processing task launch request at scheduler: " + address +":" + e);
         }
@@ -265,15 +264,17 @@ public class Scheduler {
                 (end - start) + " milliseconds");
     }
 
+
+    //todo:
     //TODO: 1) Impl Constrained scenario 2) Audit logging support
-    public TLaunchTaskRequest getTask(String requestId, THostPort nodeMonitorAddress) {
-        LOG.debug("Processing getTask() RPC call from node monitor: " + nodeMonitorAddress);
+    public void tasksFinished(String requestId, THostPort masterAddress) {
+        LOG.debug("Tasks completed by master node:" + masterAddress);
 
         TaskPlacer taskPlacer = requestTaskPlacers.get(requestId);
 
         if (taskPlacer != null) {
             //Only keep records here for logging purpose
-            taskPlacer.count();
+            taskPlacer.count(masterAddress);
             LOG.debug(taskPlacer.completedTasks() + "/" + taskPlacer.totalTasks() + " of request: " + requestId + " has been completed.");
 
             if (taskPlacer.allTasksPlaced()) {
@@ -281,37 +282,54 @@ public class Scheduler {
                 requestTaskPlacers.remove(requestId);
             }
         }
-
-        /** H/LIW and H/LTQ should be accessed in synchronized way*/
-        synchronized (state) {
-            InetSocketAddress worker = Network.thriftToSocketAddress(nodeMonitorAddress);
-
-//            List<TLaunchTaskRequest> taskLaunchSpecs = Lists.newArrayList();
-            TLaunchTaskRequest request = null;
-
-            if (isHW(worker)) {//If received idle worker is from a high priority worker list
-                if (!isHTQEmpty()) {
-                    request = HTQ.poll();
-                } else
-                    addWorker(worker);
-            } else {//If received idle worker is from a low priority worker list
-                if (!isHTQEmpty()) {
-                    request = HTQ.poll();
-                } else if (!isLTQEmpty()) {
-                    request = LTQ.poll();
-                } else
-                    addWorker(worker);
-            }
-
-            if(request == null) {
-                LOG.debug("No more tasks need to be assigned to this node monitor: " + nodeMonitorAddress + ", putting it to idle worker list.");
-                //If no more tasks need to be send, return a dummy feedback to nm to inform it no more tasks for it
-                request = new TLaunchTaskRequest();
-            }
-
-            return request;
-        }
     }
+
+//    public TLaunchTasksRequest getTask(String requestId, THostPort masterAddress) {
+//        LOG.debug("Processing getTask() RPC call from node monitor: " + masterAddress);
+//
+//        TaskPlacer taskPlacer = requestTaskPlacers.get(requestId);
+//
+//        if (taskPlacer != null) {
+//            //Only keep records here for logging purpose
+//            taskPlacer.count();
+//            LOG.debug(taskPlacer.completedTasks() + "/" + taskPlacer.totalTasks() + " of request: " + requestId + " has been completed.");
+//
+//            if (taskPlacer.allTasksPlaced()) {
+//                LOG.debug("All tasks for request:" + requestId + " has been completed!");
+//                requestTaskPlacers.remove(requestId);
+//            }
+//        }
+//
+//        /** H/LIW and H/LTQ should be accessed in synchronized way*/
+//        synchronized (state) {
+//            InetSocketAddress worker = Network.thriftToSocketAddress(masterAddress);
+//
+////            List<TLaunchTaskRequest> taskLaunchSpecs = Lists.newArrayList();
+//            TLaunchTasksRequest request = null;
+//
+////            if (isHW(worker)) {//If received idle worker is from a high priority worker list
+////                if (!isHTQEmpty()) {
+////                    request = HTQ.poll();
+////                } else
+////                    addWorker(worker);
+////            } else {//If received idle worker is from a low priority worker list
+////                if (!isHTQEmpty()) {
+////                    request = HTQ.poll();
+////                } else if (!isLTQEmpty()) {
+////                    request = LTQ.poll();
+////                } else
+////                    addWorker(worker);
+////            }
+//
+//            if(request == null) {
+//                LOG.debug("No more tasks need to be assigned to this node monitor: " + masterAddress + ", putting it to idle worker list.");
+//                //If no more tasks need to be send, return a dummy feedback to nm to inform it no more tasks for it
+//                request = new TLaunchTasksRequest();
+//            }
+//
+//            return request;
+//        }
+//    }
 
     /**
      * Returns an ID that identifies a request uniquely (across all Pigeon schedulers).
@@ -369,51 +387,11 @@ public class Scheduler {
         }
     }
 
+    public InetSocketAddress getMaster(int i) throws Exception {
+        if(i == 0)
+            Collections.shuffle(pigeonMasters);
 
-
-    /**
-     * Pigeon enqueue launch task request
-     */
-    public boolean isLIWEmpty() { return LIW.isEmpty(); }
-    public boolean isHIWEmpty() { return HIW.isEmpty(); }
-    public boolean isHTQEmpty() { return HTQ.isEmpty(); }
-    public boolean isLTQEmpty() { return LTQ.isEmpty(); }
-
-    public int getUnlaunchedTaskQueueSize(boolean isHT) { return (isHT ? HTQ.size() : LTQ.size()); }
-
-    public void enqueueLaunchTaskRequest(TLaunchTaskRequest request, boolean isHT) {
-        if(isHT)
-            HTQ.add(request);
-        else
-            LTQ.add(request);
-    }
-
-    /**
-     * Returns an idle worker
-     * @param isFromHIW
-     * @return
-     * @throws Exception
-     */
-    public InetSocketAddress getWorker(boolean isFromHIW) throws Exception {
-        if(!isHIWEmpty() && isFromHIW) {
-            Collections.shuffle(HIW);
-            return HIW.remove(0);
-        } else if(!isLIWEmpty() && !isFromHIW) {
-            Collections.shuffle(LIW);
-            return LIW.remove(0);
-        } else
-            throw new Exception("High priority workers are unavailable!");
-    }
-
-    public void addWorker(InetSocketAddress worker) {
-        if (isHW(worker))
-            HIW.add(worker);
-        else
-            LIW.add(worker);
-    }
-
-    public boolean isHW(InetSocketAddress worker) {
-        return state.isHW(worker);
+        return pigeonMasters.get(i);
     }
 
 }

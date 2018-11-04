@@ -81,12 +81,12 @@ public class ThriftClientPool<T extends TAsyncClient> {
         }
     }
 
-    public static class NodeMonitorServiceMakerFactory
-            implements MakerFactory<NodeMonitorService.AsyncClient> {
+    public static class MasterServiceMakerFactory
+            implements MakerFactory<MasterService.AsyncClient> {
         @Override
-        public NodeMonitorService.AsyncClient create(TNonblockingTransport tr,
+        public MasterService.AsyncClient create(TNonblockingTransport tr,
                                                      TAsyncClientManager mgr, TProtocolFactory factory) {
-            return new NodeMonitorService.AsyncClient(factory, mgr, tr);
+            return new MasterService.AsyncClient(factory, mgr, tr);
         }
     }
 
@@ -108,12 +108,12 @@ public class ThriftClientPool<T extends TAsyncClient> {
         }
     }
 
-    public static class GetTaskServiceMakerFactory
-            implements MakerFactory<GetTaskService.AsyncClient> {
+    public static class RecursiveServiceMakerFactory
+            implements MakerFactory<RecursiveService.AsyncClient> {
         @Override
-        public GetTaskService.AsyncClient create(TNonblockingTransport tr,
-                                                 TAsyncClientManager mgr, TProtocolFactory factory) {
-            return new GetTaskService.AsyncClient(factory, mgr, tr);
+        public RecursiveService.AsyncClient create(TNonblockingTransport tr,
+                                                   TAsyncClientManager mgr, TProtocolFactory factory) {
+            return new RecursiveService.AsyncClient(factory, mgr, tr);
         }
     }
 

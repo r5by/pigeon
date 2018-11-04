@@ -17,14 +17,15 @@
  * limitations under the License.
  */
 
-package edu.utarlington.pigeon.daemon.nodemonitor;
+package edu.utarlington.pigeon.daemon.master;
 
+import edu.utarlington.pigeon.thrift.ServerNotReadyException;
 import org.apache.commons.configuration.Configuration;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
-public interface NodeMonitorState {
+public interface PigeonMasterState {
     /**
      * Initialize state storage. This should open connections to any external
      * services if required.
@@ -33,9 +34,16 @@ public interface NodeMonitorState {
     public void initialize(Configuration conf) throws IOException;
 
     /**
-     * Register a backend identified by {@code appId} which can be reached via
-     * a NodeMonitor running at the given address. The node is assumed to have
+     * Register the backend identified by {@code appId} which can be reached via
+     * the given master running at the given address. The node is assumed to have
      * resources given by {@code capacity}.
      */
-    public boolean registerBackend(String appId, InetSocketAddress nodeMonitor);
+    public boolean registerBackend(String appId, InetSocketAddress masterAddr, InetSocketAddress backendAddr, int backendType);
+
+    /**
+     *  Used to check the master node's state, at start-up one Pigeon master should have at least one HW/LW
+     *  After the first request from Pigeon scheduler verifies this master node, the master will be considered ready for all the following requests.
+     *  Simply flap-over the flag
+     */
+    public boolean masterNodeUp();
 }

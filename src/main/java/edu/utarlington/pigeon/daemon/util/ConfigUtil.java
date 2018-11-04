@@ -36,7 +36,6 @@ import edu.utarlington.pigeon.thrift.TResourceVector;
  */
 public class ConfigUtil {
     private final static Logger LOG = Logger.getLogger(ConfigUtil.class);
-
     /**
      * Parses the list of backends from a {@link Configuration}.
      *

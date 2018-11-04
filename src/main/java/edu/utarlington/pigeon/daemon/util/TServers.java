@@ -20,7 +20,7 @@
 package edu.utarlington.pigeon.daemon.util;
 
 import edu.utarlington.pigeon.thrift.BackendService;
-import edu.utarlington.pigeon.thrift.NodeMonitorService;
+import edu.utarlington.pigeon.thrift.MasterService;
 import org.apache.log4j.Logger;
 import org.apache.thrift.TProcessor;
 import org.apache.thrift.protocol.TBinaryProtocol;

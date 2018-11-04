@@ -44,9 +44,6 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * A minimal example of pigeon frontend
- *
- * @author ruby_
- * @create 2018-10-02-3:55 PM
  */
 
 public class SimpleFrontend implements FrontendService.Iface {
@@ -107,6 +104,9 @@ public class SimpleFrontend implements FrontendService.Iface {
 
                 //todo: TEST 1) All low priority jobs should be launched only at LW
 //                spec.setIsHT(false);
+
+                //todo: Test 2) High priority jobs should be launched at both LW/HW
+//                spec.setIsHT(true);
 
                 //todo: TEST 2) Even tasks should be only launched at LW; odd tasks can be launched either on LW or HW
                 if(taskId % 2 == 0) {

@@ -7,7 +7,6 @@ import edu.utarlington.pigeon.thrift.THostPort;
 import edu.utarlington.pigeon.thrift.TUserGroupInfo;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.BasicConfigurator;
-import edu.utarlington.pigeon.daemon.nodemonitor.TaskScheduler.TaskSpec;
 
 import org.junit.Before;
 import org.junit.Test;
