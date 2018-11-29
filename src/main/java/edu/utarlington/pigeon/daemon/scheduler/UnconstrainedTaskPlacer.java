@@ -87,6 +87,29 @@ public class UnconstrainedTaskPlacer implements TaskPlacer {
     public void processRequest(TSchedulingRequest schedulingRequest, THostPort schedulerAddr) throws Exception {
         populateTasksForRequest(schedulingRequest);
 
+        //Step1: set-up task priority level based on request info: average task execution time
+        double avgTasksD = schedulingRequest.getAvgTasksExecDuration();
+        if(avgTasksD == 0.0) {
+            //calc average tasks duration by tasks list
+            avgTasksD = ListUtils.mean(tasks);
+            System.out.println("_____Average_____" + avgTasksD);
+        }
+
+        double cutOff = scheduler.getCutoff();
+        boolean highPriority;
+        if (avgTasksD < cutOff){
+            highPriority = true;
+        }
+        else {
+            highPriority = false;
+        }
+
+        //Set up task priorities based on the avg. task exec duration
+        for (TTaskLaunchSpec spec: tasks) {
+            spec.setIsHT(highPriority);
+        }
+
+        //Step2: split tasks to master groups
         int numOfGroups = scheduler.pigeonMasters.size();
         if (numOfGroups < 1) {
             throw new ServerNotReadyException("Master nodes need to be configured at Pigeon frondend side.");

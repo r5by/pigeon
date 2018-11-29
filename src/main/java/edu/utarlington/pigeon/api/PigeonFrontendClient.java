@@ -31,8 +31,10 @@ public class PigeonFrontendClient {
 
     public static boolean launchedServerAlready = false;
 
-    public boolean submitJob(String applicationId, List<TTaskSpec> tasks, TUserGroupInfo user) throws TException {
-        return submitRequest(new TSchedulingRequest(applicationId, tasks, user));
+    public boolean submitJob(String applicationId, double avgTasksD, List<TTaskSpec> tasks, TUserGroupInfo user) throws TException {
+        TSchedulingRequest request = new TSchedulingRequest(applicationId, tasks, user);
+        request.setAvgTasksExecDuration(avgTasksD);
+        return submitRequest(request);
     }
 
     private boolean submitRequest(TSchedulingRequest request) {

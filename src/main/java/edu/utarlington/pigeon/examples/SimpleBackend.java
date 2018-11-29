@@ -118,11 +118,11 @@ public class SimpleBackend implements BackendService.Iface {
     }
 
     private class TaskRunnable implements Runnable {
-        private int taskDurationMillis;
+        private long taskDurationMillis;
         private TFullTaskId taskId;
 
         public TaskRunnable(String requestId, TFullTaskId taskId, ByteBuffer message) {
-            this.taskDurationMillis = message.getInt();
+            this.taskDurationMillis = message.getLong();
             this.taskId = taskId;
         }
 

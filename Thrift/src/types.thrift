@@ -71,8 +71,8 @@ struct TSchedulingRequest {
   3: TUserGroupInfo user;
   # A description that will be logged alongside the requestId that Pigeon assigns.
   4: optional string description;
-  # Hack to allow us to specify the probe ratio for certain types of requests.
-  5: optional double probeRatio;
+  # Average tasks execution, used by Pigeon scheduler to set-up task piority level
+  5: optional double avgTasksExecDuration;
 }
 
 #struct TEnqueueTaskReservationsRequest {

@@ -26,7 +26,7 @@ import edu.utarlington.pigeon.thrift.RecursiveService;
 import edu.utarlington.pigeon.thrift.THostPort;
 import edu.utarlington.pigeon.thrift.TLaunchTasksRequest;
 import edu.utarlington.pigeon.thrift.TTaskLaunchSpec;
-import javafx.concurrent.Task;
+//import javafx.concurrent.Task;
 import org.apache.log4j.Logger;
 import org.apache.thrift.async.AsyncMethodCallback;
 

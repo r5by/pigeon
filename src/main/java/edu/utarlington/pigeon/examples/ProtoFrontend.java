@@ -1,22 +1,3 @@
-/*
- * PIGEON
- * Copyright 2018 Univeristy of Texas at Arlington
- *
- * Modified from Sparrow - University of California, Berkeley
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package edu.utarlington.pigeon.examples;
 
 import edu.utarlington.pigeon.api.PigeonFrontendClient;
@@ -30,66 +11,61 @@ import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.commons.lang.ObjectUtils;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
 
+
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-/**
- * A minimal example of pigeon frontend
- */
+public class ProtoFrontend implements FrontendService.Iface {
 
-public class SimpleFrontend implements FrontendService.Iface {
     /**
      * Default application name.
      */
     public static final String APPLICATION_ID = "sleepApp";
     private static final Logger LOG = Logger.getLogger(SimpleFrontend.class);
 
-    /** Amount of time to launch tasks for. */
-    public static final String EXPERIMENT_S = "experiment_s";
-    public static final int DEFAULT_EXPERIMENT_S = 300;
-
-    public static final String JOB_ARRIVAL_PERIOD_MILLIS = "job_arrival_period_millis";
-    public static final int DEFAULT_JOB_ARRIVAL_PERIOD_MILLIS = 100;
-
-    /** Number of tasks per job. */
-    public static final String TASKS_PER_JOB = "tasks_per_job";
-    public static final int DEFAULT_TASKS_PER_JOB = 1;
-
-    /** Duration of one task, in milliseconds */
-    public static final String TASK_DURATION_MILLIS = "task_duration_millis";
-    public static final int DEFAULT_TASK_DURATION_MILLIS = 100;
-
-    public static final String TASK_DURATION_MILLIS_LOW_P = "task_duration_millis_L";
-    public static final int DEFAULT_TASK_DURATION_MILLIS_LOW_P = 1000;
-
-    /** Host and port where scheduler is running. */
+    /**
+     * Host and port where scheduler is running.。/
+     *
+     */
     public static final String SCHEDULER_HOST = "scheduler_host";
     public static final String DEFAULT_SCHEDULER_HOST = "localhost";
     public static final String SCHEDULER_PORT = "scheduler_port";
 
+    /**
+     * trace file config.
+     */
+    public static final String TR_PATH = "tr_path";
 
     private static final TUserGroupInfo USER = new TUserGroupInfo();
 
     private PigeonFrontendClient client;
 
     private class JobLaunchRunnable implements Runnable {
-        private int tasksPerJob;
-        private int taskDurationMillis;
-        private int taskDurationMillis_LP;
+//        private int requestId;
+        private double arrivalInterval;
+        private double averageTasksD;
+        private List<Double> tasksDList;
 
-        public JobLaunchRunnable(int tasksPerJob, int taskDurationMillis, int taskDurationMillis_LP) {
-            this.tasksPerJob = tasksPerJob;
-            this.taskDurationMillis = taskDurationMillis;
-            this.taskDurationMillis_LP = taskDurationMillis_LP;
+        public JobLaunchRunnable(double arrivalInterval, double avgTasksD, List<Double> tasks) {
+//            this.requestId = requestId;
+            this.arrivalInterval = arrivalInterval;
+            this.averageTasksD = avgTasksD;
+            tasksDList = new ArrayList<Double>(tasks);
         }
 
         @Override
@@ -97,36 +73,21 @@ public class SimpleFrontend implements FrontendService.Iface {
             // Generate tasks in the format expected by Sparrow. First, pack task parameters.
 
             List<TTaskSpec> tasks = new ArrayList<TTaskSpec>();
-            int averageD = 0;
-            for (int taskId = 0; taskId < tasksPerJob; taskId++) {
+            for (int taskId = 0; taskId < tasksDList.size(); taskId++) {
                 TTaskSpec spec = new TTaskSpec();
-                ByteBuffer message = ByteBuffer.allocate(4);
+                ByteBuffer message = ByteBuffer.allocate(8);
 
                 spec.setTaskId(Integer.toString(taskId));
-
-                //todo: TEST 1) All low priority jobs should be launched only at LW
-//                spec.setIsHT(false);
-
-                //todo: Test 2) High priority jobs should be launched at both LW/HW
-//                spec.setIsHT(true);
-
-                //todo: TEST 2) Even tasks should be only launched at LW; odd tasks can be launched either on LW or HW
-                if (taskId % 2 == 0) {
-                    averageD = taskDurationMillis;
-                    spec.setIsHT(true);
-                    message.putInt(taskDurationMillis_LP);
-                } else {
-                    averageD = taskDurationMillis_LP;
-                    spec.setIsHT(false);
-                    message.putInt(taskDurationMillis);
-                }
-
                 spec.setMessage(message.array());
+                long tasksDListLong = Math.round(tasksDList.get(taskId));
+                message.putLong(tasksDListLong);
+                long debug = message.getLong();
                 tasks.add(spec);
+                LOG.info(debug);
             }
             long start = System.currentTimeMillis();
             try {
-                client.submitJob(APPLICATION_ID, averageD, tasks, USER);
+                client.submitJob(APPLICATION_ID, averageTasksD, tasks, USER);
             } catch (TException e) {
                 LOG.error("Scheduling request failed!", e);
             }
@@ -164,14 +125,9 @@ public class SimpleFrontend implements FrontendService.Iface {
                 conf = new PropertiesConfiguration(configFile);
             }
 
-            int arrivalPeriodMillis = conf.getInt(JOB_ARRIVAL_PERIOD_MILLIS,
-                    DEFAULT_JOB_ARRIVAL_PERIOD_MILLIS);
-            int experimentDurationS = conf.getInt(EXPERIMENT_S, DEFAULT_EXPERIMENT_S);
-            LOG.debug("Using arrival period of " + arrivalPeriodMillis +
-                    " milliseconds and running experiment for " + experimentDurationS + " seconds.");
-            int tasksPerJob = conf.getInt(TASKS_PER_JOB, DEFAULT_TASKS_PER_JOB);
-            int taskDurationMillis = conf.getInt(TASK_DURATION_MILLIS, DEFAULT_TASK_DURATION_MILLIS);
-            int taskDurationMillis_LP = conf.getInt(TASK_DURATION_MILLIS_LOW_P, DEFAULT_TASK_DURATION_MILLIS_LOW_P);
+            String trPath = conf.getString(TR_PATH);
+//            Double traceCutOff = conf.getDouble(TR_CUTOFF, TR_CUTOFF_DEFAULT);
+//            traceCutOffMilliSec = traceCutOff.longValue();
 
             int schedulerPort = conf.getInt(SCHEDULER_PORT,
                     SchedulerThrift.DEFAULT_SCHEDULER_THRIFT_PORT);
@@ -179,25 +135,69 @@ public class SimpleFrontend implements FrontendService.Iface {
             client = new PigeonFrontendClient();
             client.initialize(new InetSocketAddress(schedulerHost, schedulerPort), APPLICATION_ID, this);
 
-            JobLaunchRunnable runnable = new JobLaunchRunnable(tasksPerJob, taskDurationMillis, taskDurationMillis_LP);
+
+            FileInputStream inputStream = new FileInputStream(trPath);
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+
+            String str = null;
+
+            int requestId = 0;
+            Double arrivalInterval = 0.0;
+            double exprTime = 0.0;
+            Double averageDuriationMilliSec;
+            long arrivalIntervalinMilliSec = 0;
+            List tasks = new ArrayList();
+
             ScheduledThreadPoolExecutor taskLauncher = new ScheduledThreadPoolExecutor(1);
-            taskLauncher.scheduleAtFixedRate(runnable, 0, arrivalPeriodMillis, TimeUnit.MILLISECONDS);
+
+            while((str = bufferedReader.readLine()) != null)
+            {
+                str = str+"\r\n";
+                String[] SubmissionTime =  str.split("\\s{1,}|\t");
+                arrivalInterval = Double.parseDouble(SubmissionTime[0]);
+
+                arrivalIntervalinMilliSec = Double.valueOf(arrivalInterval * 1000).longValue();
+
+                averageDuriationMilliSec = Double.parseDouble(SubmissionTime[2]) * 1000;
+
+                String[] dictionary = str.split("\\s{2}|\t");
+                //tasks = null;
+                for(int i = 1;i<dictionary.length-1;i++){
+                    //change second to milliseconds
+                    double taskDinMilliSec = Double.valueOf(dictionary[i]) * 1000;
+                    tasks.add(taskDinMilliSec);
+
+                }
+
+                //Estimated experiment duration
+                exprTime += averageDuriationMilliSec * tasks.size();
+
+                ProtoFrontend.JobLaunchRunnable runnable = new JobLaunchRunnable(arrivalIntervalinMilliSec, averageDuriationMilliSec,tasks);
+                taskLauncher.schedule(runnable,  arrivalIntervalinMilliSec, TimeUnit.MILLISECONDS);
+
+                requestId++;
+                System.out.println(tasks);
+                tasks.clear();
+            }
+            System.out.println(tasks);
+            inputStream.close();
+            bufferedReader.close();
 
             long startTime = System.currentTimeMillis();
             LOG.debug("sleeping");
-            while (System.currentTimeMillis() < startTime + experimentDurationS * 1000) {
+            while (System.currentTimeMillis() < startTime + exprTime) {
                 Thread.sleep(100);
             }
             taskLauncher.shutdown();
             LOG.debug("Experiment Completed!!");
             client.close();
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             LOG.error("Fatal exception", e);
         }
     }
 
     public static void main(String[] args) {
-        new SimpleFrontend().start(args);
+        new ProtoFrontend().start(args);
     }
+
 }

@@ -80,7 +80,7 @@ service SchedulerService {
                            3: i32 status, 4: binary message);
 }
 
-# The InternalService is used by Pigeon scheduler to communicate with master node
+# The InternalService is used by Pigeon scheduler to communicate with master node (port by default: 20502)
 service InternalService {
   # Pigeon don't need reservations, only need to send task launch request to a randomly selected master
   bool launchTasksRequest(1: types.TLaunchTasksRequest launchTaskRequest) throws (1: types.ServerNotReadyException e);

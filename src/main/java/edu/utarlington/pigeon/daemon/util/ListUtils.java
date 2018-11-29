@@ -1,5 +1,8 @@
 package edu.utarlington.pigeon.daemon.util;
 
+import edu.utarlington.pigeon.thrift.TTaskLaunchSpec;
+import edu.utarlington.pigeon.thrift.TTaskSpec;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,5 +35,21 @@ public class ListUtils {
         }
 
         return parts;
+    }
+
+    /**
+     * Calc the average of a given double list
+     * @param list
+     * @return
+     */
+    public static double mean(List<TTaskLaunchSpec> list) {
+        List<Double> tasks = new ArrayList<Double>();
+        double sum = 0.0;
+        for (double value : tasks
+             ) {
+            sum += value;
+        }
+        double mean = sum / list.size();
+        return mean;
     }
 }
