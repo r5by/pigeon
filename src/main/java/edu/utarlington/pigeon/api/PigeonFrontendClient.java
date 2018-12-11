@@ -86,7 +86,7 @@ public class PigeonFrontendClient {
         for (int i = 0; i < NUM_CLIENTS; i++) {
             SchedulerService.Client client = TClients.createBlockingSchedulerClient(
                     schedularAddr.getAddress().getHostAddress(), schedularAddr.getPort(),
-                    60000);
+                    600000);
             clients.add(client);
         }
         clients.peek().registerFrontend(applicationId, Network.getIPAddress(new PropertiesConfiguration())

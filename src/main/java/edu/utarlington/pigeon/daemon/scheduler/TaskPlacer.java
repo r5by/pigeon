@@ -33,4 +33,10 @@ public interface TaskPlacer {
     public int completedTasks();
     public int totalTasks();
     public int count(THostPort addr);
+
+    /* Get the execution duration for the request from its taskPlacer*/
+    public long getExecDurationMillis(long finishTime);
+
+    /* Get the priority of this placer */
+    public boolean getPriority();
 }

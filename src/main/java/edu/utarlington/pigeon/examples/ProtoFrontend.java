@@ -36,7 +36,7 @@ public class ProtoFrontend implements FrontendService.Iface {
      * Default application name.
      */
     public static final String APPLICATION_ID = "sleepApp";
-    private static final Logger LOG = Logger.getLogger(SimpleFrontend.class);
+    private static final Logger LOG = Logger.getLogger(ProtoFrontend.class);
 
     /**
      * Host and port where scheduler is running.。/
@@ -69,7 +69,7 @@ public class ProtoFrontend implements FrontendService.Iface {
         }
 
         @Override
-        public void run() {
+        public void run(){
             // Generate tasks in the format expected by Sparrow. First, pack task parameters.
 
             List<TTaskSpec> tasks = new ArrayList<TTaskSpec>();
@@ -78,12 +78,10 @@ public class ProtoFrontend implements FrontendService.Iface {
                 ByteBuffer message = ByteBuffer.allocate(8);
 
                 spec.setTaskId(Integer.toString(taskId));
-                spec.setMessage(message.array());
                 long tasksDListLong = Math.round(tasksDList.get(taskId));
                 message.putLong(tasksDListLong);
-                long debug = message.getLong();
+                spec.setMessage(message.array());
                 tasks.add(spec);
-                LOG.info(debug);
             }
             long start = System.currentTimeMillis();
             try {

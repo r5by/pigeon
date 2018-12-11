@@ -158,7 +158,7 @@ public class FifoTaskScheduler extends TaskScheduler {
         public void onComplete(RecursiveService.AsyncClient.tasksFinished_call response) {
             try {
                 long totalTime = System.currentTimeMillis() - startTimeMillis;
-                LOG.debug( "Scheduler: " + schedulerAddr + " has been notified that all tasks from request: " + requestId + " completed in " + totalTime + "ms");
+                LOG.debug( "Scheduler: " + schedulerAddr + " has been notified that all tasks from request: " + requestId);
                 recursiveClientPool.returnClient(schedulerAddr, (RecursiveService.AsyncClient) response.getClient());
             } catch (Exception e) {
                 e.printStackTrace();
