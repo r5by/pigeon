@@ -35,6 +35,13 @@ public class PigeonFrontendClient {
         return submitRequest(new TSchedulingRequest(applicationId, tasks, user));
     }
 
+    //For Spark
+    public boolean submitJob(String applicationId, List<TTaskSpec> tasks, TUserGroupInfo user, String description) throws TException {
+        TSchedulingRequest request = new TSchedulingRequest(applicationId, tasks, user);
+        request.setDescription(description);
+        return submitRequest(request);
+    }
+
     private boolean submitRequest(TSchedulingRequest request) {
         try {
             SchedulerService.Client client = clients.take();
