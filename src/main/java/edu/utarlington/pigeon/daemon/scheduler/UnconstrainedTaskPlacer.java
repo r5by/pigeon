@@ -46,6 +46,10 @@ public class UnconstrainedTaskPlacer implements TaskPlacer {
     /** Used to uniquely identify number of completed tasks for this request */
     private int counter;
     private int totalTasks;
+    /** Record the request start time and end time*/
+    private long startTime;
+    /** Tasks prioriy of this request */
+    private boolean priority;
 
     private List<TTaskLaunchSpec> tasks;
 
@@ -56,6 +60,8 @@ public class UnconstrainedTaskPlacer implements TaskPlacer {
         this.requestId = requestId;
         this.scheduler = scheduler;
         this.totalTasks = totalTasks;
+        /*Record request start time*/
+        this.startTime = System.currentTimeMillis();
         counter = 0;
         tasks = new ArrayList<TTaskLaunchSpec>();
         numberOfTasksAssignedToMasters = new HashMap<InetSocketAddress, Integer>();
@@ -70,6 +76,8 @@ public class UnconstrainedTaskPlacer implements TaskPlacer {
             tasks.add(taskLaunchSpec);
         }
     }
+
+
 
     //todo
     @Override
@@ -87,6 +95,29 @@ public class UnconstrainedTaskPlacer implements TaskPlacer {
     public void processRequest(TSchedulingRequest schedulingRequest, THostPort schedulerAddr) throws Exception {
         populateTasksForRequest(schedulingRequest);
 
+        //Step1: set-up task priority level based on request info: average task execution time
+        double avgTasksD = schedulingRequest.getAvgTasksExecDuration();
+        if(avgTasksD == 0.0) {
+            //calc average tasks duration by tasks list
+            avgTasksD = ListUtils.mean(tasks);
+            System.out.println("_____Average_____" + avgTasksD);
+        }
+
+        double cutOff = scheduler.getCutoff();
+
+        if (avgTasksD < cutOff){
+            priority = true;
+        }
+        else {
+            priority = false;
+        }
+
+        //Set up task priorities based on the avg. task exec duration
+        for (TTaskLaunchSpec spec: tasks) {
+            spec.setIsHT(priority);
+        }
+
+        //Step2: split tasks to master groups
         int numOfGroups = scheduler.pigeonMasters.size();
         if (numOfGroups < 1) {
             throw new ServerNotReadyException("Master nodes need to be configured at Pigeon frondend side.");
@@ -123,6 +154,19 @@ public class UnconstrainedTaskPlacer implements TaskPlacer {
         int finishedTasks = numberOfTasksAssignedToMasters.get(masterAddr);
         counter += finishedTasks;
         return counter;
+    }
+
+    @Override
+    public long getExecDurationMillis(long finishTime) {
+        if(finishTime < startTime)
+            throw new IllegalArgumentException("Invalid time");
+
+        return finishTime - startTime;
+    }
+
+    @Override
+    public boolean getPriority() {
+        return this.priority;
     }
 
     private void assignLaunchTaskRequest(TLaunchTasksRequest request, InetSocketAddress masterAddress) throws Exception {

@@ -76,6 +76,7 @@ public class SimpleFrontend implements FrontendService.Iface {
     public static final String DEFAULT_SCHEDULER_HOST = "localhost";
     public static final String SCHEDULER_PORT = "scheduler_port";
 
+
     private static final TUserGroupInfo USER = new TUserGroupInfo();
 
     private PigeonFrontendClient client;
@@ -96,6 +97,7 @@ public class SimpleFrontend implements FrontendService.Iface {
             // Generate tasks in the format expected by Sparrow. First, pack task parameters.
 
             List<TTaskSpec> tasks = new ArrayList<TTaskSpec>();
+            int averageD = 0;
             for (int taskId = 0; taskId < tasksPerJob; taskId++) {
                 TTaskSpec spec = new TTaskSpec();
                 ByteBuffer message = ByteBuffer.allocate(4);
@@ -109,11 +111,13 @@ public class SimpleFrontend implements FrontendService.Iface {
 //                spec.setIsHT(true);
 
                 //todo: TEST 2) Even tasks should be only launched at LW; odd tasks can be launched either on LW or HW
-                if(taskId % 2 == 0) {
-                    spec.setIsHT(false);
+                if (taskId % 2 == 0) {
+                    averageD = taskDurationMillis;
+                    spec.setIsHT(true);
                     message.putInt(taskDurationMillis_LP);
                 } else {
-                    spec.setIsHT(true);
+                    averageD = taskDurationMillis_LP;
+                    spec.setIsHT(false);
                     message.putInt(taskDurationMillis);
                 }
 
@@ -122,7 +126,7 @@ public class SimpleFrontend implements FrontendService.Iface {
             }
             long start = System.currentTimeMillis();
             try {
-                client.submitJob(APPLICATION_ID, tasks, USER);
+                client.submitJob(APPLICATION_ID, averageD, tasks, USER);
             } catch (TException e) {
                 LOG.error("Scheduling request failed!", e);
             }

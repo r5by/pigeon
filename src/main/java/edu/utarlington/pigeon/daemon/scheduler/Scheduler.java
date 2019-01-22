@@ -22,6 +22,7 @@ package edu.utarlington.pigeon.daemon.scheduler;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import edu.utarlington.pigeon.daemon.PigeonConf;
+import edu.utarlington.pigeon.daemon.util.ListUtils;
 import edu.utarlington.pigeon.daemon.util.Network;
 import edu.utarlington.pigeon.daemon.util.Serialization;
 import edu.utarlington.pigeon.daemon.util.ThriftClientPool;
@@ -38,6 +39,14 @@ import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+
+
 
 /**
  * This class implements the Sparrow scheduler functionality.
@@ -51,6 +60,7 @@ public class Scheduler {
     private AtomicInteger counter = new AtomicInteger(0);
 
     private THostPort address;
+    private double cutoff;
 
     /** Socket addresses for each frontend. */
     HashMap<String, InetSocketAddress> frontendSockets =
@@ -108,6 +118,7 @@ public class Scheduler {
     public void initialize(Configuration conf, InetSocketAddress socket) throws IOException {
         address = Network.socketAddressToThrift(socket);
         String mode = conf.getString(PigeonConf.DEPLYOMENT_MODE, "unspecified");
+        cutoff = conf.getDouble(PigeonConf.TR_CUTOFF, PigeonConf.TR_CUTOFF_DEFAULT);
         this.conf = conf;
         //TODO: Mode support
         if (mode.equals("standalone")) {
@@ -271,7 +282,6 @@ public class Scheduler {
         LOG.debug("Tasks completed by master node:" + masterAddress);
 
         TaskPlacer taskPlacer = requestTaskPlacers.get(requestId);
-
         if (taskPlacer != null) {
             //Only keep records here for logging purpose
             taskPlacer.count(masterAddress);
@@ -279,8 +289,27 @@ public class Scheduler {
 
             if (taskPlacer.allTasksPlaced()) {
                 LOG.debug("All tasks for request:" + requestId + " has been completed!");
+                //TODO: merging with logging support: write-out the request execution time for requestId
+                long latency = taskPlacer.getExecDurationMillis(System.currentTimeMillis());
+                LOG.debug("Request: " + requestId + " Request Type: " + taskPlacer.getPriority() + " exec latency: " + latency);
+                String requestInfo = "Request: " + requestId + " Request Type: " + taskPlacer.getPriority() + " exec latency: " + latency;
+                CreateNewTxt(requestInfo);
                 requestTaskPlacers.remove(requestId);
             }
+        }
+    }
+
+    /*Output txt file*/
+    public void CreateNewTxt(String requestInfo){
+        BufferedWriter output = null;
+        try {
+            File file = new File("requestInfo.txt");
+            output = new BufferedWriter(new OutputStreamWriter(
+                    new FileOutputStream(file, true), "utf-8"));
+            output.write(requestInfo+"\r\n");
+            output.close();
+        } catch ( IOException e ) {
+            e.printStackTrace();
         }
     }
 
@@ -392,6 +421,10 @@ public class Scheduler {
             Collections.shuffle(pigeonMasters);
 
         return pigeonMasters.get(i);
+    }
+
+    public double getCutoff() {
+        return this.cutoff;
     }
 
 }
