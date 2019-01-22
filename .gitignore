@@ -7,3 +7,7 @@ target/
 
 .idea
 doc
+nodemonitor.ref/
+out/
+src/main/resources/
+*.iml
