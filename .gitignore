@@ -4,6 +4,7 @@
 target/
 *.swp
 *.pyc
+classes/
 
 .idea
 doc
@@ -11,3 +12,4 @@ nodemonitor.ref/
 out/
 src/main/resources/
 *.iml
+.DS_Store
