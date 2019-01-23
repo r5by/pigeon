@@ -73,6 +73,7 @@ java -XX:+UseConcMarkSweepGC -cp <path_to>/pigeon-1.0-SNAPSHOT.jar edu.utarlingt
 
 Please refer to [here](https://github.com/ruby-/spark-parent_2.11.git) for our Pigeon Spark Plugin. A simple example can be found to guide you through integrating your own use case with Pigeon over [Spark](https://spark.apache.org/) platform.
 
+<!--
 ## Research
 
 Pigeon is a research project within the [UT Arlington Systems Research Group](CSESYS@LISTSERV.UTA.EDU). The Pigeon team consists of Huiyang Li, Zhijun Wang, Hao Che and Zhongwei Li, please contact us for details about Pigeon Scheduler via the following email addresses.
@@ -82,3 +83,4 @@ Pigeon is a research project within the [UT Arlington Systems Research Group](CS
 - Huiyang Li <huiyang.li@mavs.uta.edu>
 - Zhongwei Li <zhongwei.li@mavs.uta.edu>
 - Hao Che <hche@uta.edu>
+-->
