@@ -59,6 +59,11 @@ public class Scheduler {
     /** Used to uniquely identify requests arriving at this scheduler. */
     private AtomicInteger counter = new AtomicInteger(0);
 
+    /**
+     * Used to keep the reservation records of each arrived request; Initialized at handleJobSubmission; key->value is requestId -> defined book-keeping structure
+     */
+    HashMap<String, RequestTasksRecords> records = new HashMap<String, RequestTasksRecords>();
+
     private THostPort address;
     private double cutoff;
 
@@ -260,6 +265,10 @@ public class Scheduler {
         String requestId = getRequestId();
         int totalTasks = request.getTasksSize();
 
+        //Init records for the request
+        LOG.debug("Pigeon start handling request: " + requestId + " at time stamp: " + start);
+        records.put(requestId, new RequestTasksRecords(start, totalTasks, false)); //Default the record as short
+
         TaskPlacer taskPlacer = new UnconstrainedTaskPlacer(requestId, totalTasks, this);
         requestTaskPlacers.put(requestId, taskPlacer);
 
@@ -283,19 +292,22 @@ public class Scheduler {
 
         TaskPlacer taskPlacer = requestTaskPlacers.get(requestId);
         if (taskPlacer != null) {
-            //Only keep records here for logging purpose
-            taskPlacer.count(masterAddress);
-            LOG.debug(taskPlacer.completedTasks() + "/" + taskPlacer.totalTasks() + " of request: " + requestId + " has been completed.");
+            synchronized (taskPlacer) {
+                //Only keep records here for logging purpose, note the counter need to be atomic with allTasksPlaced() for mutil-access purpose
+                taskPlacer.count(masterAddress);
+                LOG.debug(taskPlacer.completedTasks() + "/" + taskPlacer.totalTasks() + " of request: " + requestId + " has been completed.");
 
-            if (taskPlacer.allTasksPlaced()) {
-                LOG.debug("All tasks for request:" + requestId + " has been completed!");
-                //TODO: merging with logging support: write-out the request execution time for requestId
-                long latency = taskPlacer.getExecDurationMillis(System.currentTimeMillis());
-                LOG.debug("Request: " + requestId + " Request Type: " + taskPlacer.getPriority() + " exec latency: " + latency);
-                String requestInfo = "Request: " + requestId + " Request Type: " + taskPlacer.getPriority() + " exec latency: " + latency;
-                CreateNewTxt(requestInfo);
-                requestTaskPlacers.remove(requestId);
+                if (taskPlacer.allTasksPlaced()) {
+                    LOG.debug("All tasks for request:" + requestId + " has been completed!");
+                    //TODO: merging with logging support: write-out the request execution time for requestId
+                    long latency = taskPlacer.getExecDurationMillis(System.currentTimeMillis());
+                    LOG.debug("Request: " + requestId + " Request Type: " + taskPlacer.getPriority() + " exec latency: " + latency);
+                    String requestInfo = "Request: " + requestId + " Request Type: " + taskPlacer.getPriority() + " exec latency: " + latency;
+                    CreateNewTxt(requestInfo);
+                    requestTaskPlacers.remove(requestId);
+                }
             }
+
         }
     }
 
@@ -399,14 +411,49 @@ public class Scheduler {
     public void sendFrontendMessage(String app, TFullTaskId taskId,
                                     int status, ByteBuffer message) {
 //        LOG.debug(Logging.functionCall(app, taskId, message));
+
+        //When a task is completed, remove the task from the request
+        String requestId = taskId.requestId;
+        RequestTasksRecords record = records.get(requestId);
+        record.handleTaskComplete(taskId.isHT);
+
         InetSocketAddress frontend = frontendSockets.get(app);
         if (frontend == null) {
             LOG.error("Requested message sent to unregistered app: " + app);
         }
         try {
             FrontendService.AsyncClient client = frontendClientPool.borrowClient(frontend);
-            client.frontendMessage(taskId, status, message,
-                    new sendFrontendMessageCallback(frontend, client));
+
+            synchronized (record) {
+                if(record.allTasksCompleted()) { //If all tasks of the request completed, set status as 1 and pass the elapsed time to frontend output
+                    LOG.debug("Starting Time for request: " + requestId + ": " + record.start + ", end time is: " + record.end + ". Total elapsed time is " + record.elapsed());
+                    ByteBuffer msg = ByteBuffer.allocate(8);
+                    msg.putLong(record.elapsed());
+                    msg.position(0);
+
+                    /* The updated status:
+                     * 0: Original value, sent back to client if not all tasks completed
+                     * 1: All tasks completed for the request, and the request is short job
+                     * 2: All tasks completed for the request, and the request is long job
+                     * */
+                    int updatedStatus = status;
+
+                    if(record.isShortjob())
+                        updatedStatus = 1;
+                    else
+                        updatedStatus = 2;
+
+                    client.frontendMessage(taskId, updatedStatus, msg,
+                            new sendFrontendMessageCallback(frontend, client));
+
+                    records.remove(requestId);
+                } else {
+                    client.frontendMessage(taskId, status, message,
+                            new sendFrontendMessageCallback(frontend, client));
+                }
+            }
+//            client.frontendMessage(taskId, status, message,
+//                    new sendFrontendMessageCallback(frontend, client));
         } catch (IOException e) {
             LOG.error("Error launching message on frontend: " + app, e);
         } catch (TException e) {
@@ -425,6 +472,50 @@ public class Scheduler {
 
     public double getCutoff() {
         return this.cutoff;
+    }
+
+    //===============================
+    // Extension: Instruments
+    //===============================
+
+    /**
+     * Per-request related reservation book-keeping. Used to instrument Sparrow so we know the elapsed time for every request (the time starting from incoming request gets scheduled, to the last of its task finished)
+     */
+    class RequestTasksRecords {
+        long start;
+        long end;
+        int remainingTasks;
+        boolean shortjob;
+
+        RequestTasksRecords(long pStart, int tasksSize, boolean isShortjob) {
+            start = pStart;
+            remainingTasks = tasksSize;
+            shortjob = isShortjob;
+        }
+
+        /* When a task complete, decrease the reservations; if no reservations left record the end time stamp */
+        void handleTaskComplete(boolean isHT) {
+            remainingTasks--;
+            if(isHT) shortjob = isHT;
+            if(remainingTasks ==0)
+                end = System.currentTimeMillis();
+        }
+
+        boolean allTasksCompleted() {
+            if(remainingTasks == 0) {
+                remainingTasks = -1; //Reset the flag to avoid multiple access the critical section
+                return true;
+            } else
+                return false;
+        }
+
+        long elapsed() {
+            return end - start;
+        }
+
+        boolean isShortjob() {
+            return shortjob;
+        }
     }
 
 }

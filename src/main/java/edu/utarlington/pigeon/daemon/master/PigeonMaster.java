@@ -146,7 +146,9 @@ public class PigeonMaster {
     public boolean launchTasksRequest(TLaunchTasksRequest request) throws TException{
         LOG.info("Received launch task request from " + ipAddress + " for request " + request.requestID);
 
-        InetSocketAddress schedulerAddress = new InetSocketAddress(request.getSchedulerAddress().getHost(), request.getSchedulerAddress().getPort());
+        //TODO: sendFrontendMessage method should be accessed from recuirsive services, change the Thrif interface and uncomment the following statement
+//        InetSocketAddress schedulerAddress = new InetSocketAddress(request.getSchedulerAddress().getHost(), request.getSchedulerAddress().getPort());
+        InetSocketAddress schedulerAddress = new InetSocketAddress(request.getSchedulerAddress().getHost(), 20503);
         requestSchedulers.put(request.getRequestID(), schedulerAddress);
 
         synchronized (state) {
@@ -204,6 +206,10 @@ public class PigeonMaster {
 
         String app = task.get(0).appId;
         String requestId = task.get(0).requestId;
+
+        //Instrument Pigeon to simulating send taskComplete() back to scheduler
+        TFullTaskId t = task.get(0);
+        sendFrontendMessage(app, t, 0, null);
 
         synchronized (state) {
             if (!occupiedWorkers.containsKey(idleWorker))

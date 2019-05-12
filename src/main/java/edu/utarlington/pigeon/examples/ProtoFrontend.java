@@ -55,6 +55,9 @@ public class ProtoFrontend implements FrontendService.Iface {
 
     private PigeonFrontendClient client;
 
+    private long totalNumberOfRequests;
+    private long completedRequestsCount;
+
     private class JobLaunchRunnable implements Runnable {
 //        private int requestId;
         private double arrivalInterval;
@@ -96,8 +99,17 @@ public class ProtoFrontend implements FrontendService.Iface {
 
     @Override
     public void frontendMessage(TFullTaskId taskId, int status, ByteBuffer message) throws TException {
-        // We don't use messages here, so just log it.
-        LOG.debug("Got unexpected message: " + Serialization.getByteBufferContents(message));
+        LOG.debug("Task: " + taskId.getTaskId() + " for request: " + taskId.requestId + " has completed!");
+        switch (status) {
+            case 1:
+                LOG.debug("All tasks for request: " + taskId.requestId + " have been completed Type " + "Short Job" + " The total elapsed time is: " + message.getLong(message.position()) + " ms");
+                completedRequestsCount++;
+                break;
+            case 2:
+                LOG.debug("All tasks for request: " + taskId.requestId + " have been completed Type " + "Long Job" + " The total elapsed time is: " + message.getLong(message.position()) + " ms");
+                completedRequestsCount++;
+                break;
+        }
     }
 
     public void start(String[] args) {
@@ -133,6 +145,9 @@ public class ProtoFrontend implements FrontendService.Iface {
             client = new PigeonFrontendClient();
             client.initialize(new InetSocketAddress(schedulerHost, schedulerPort), APPLICATION_ID, this);
 
+            //set experiment count
+            totalNumberOfRequests = 0;
+            completedRequestsCount = 0;
 
             FileInputStream inputStream = new FileInputStream(trPath);
             BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
@@ -173,6 +188,7 @@ public class ProtoFrontend implements FrontendService.Iface {
                 ProtoFrontend.JobLaunchRunnable runnable = new JobLaunchRunnable(arrivalIntervalinMilliSec, averageDuriationMilliSec,tasks);
                 taskLauncher.schedule(runnable,  arrivalIntervalinMilliSec, TimeUnit.MILLISECONDS);
 
+                totalNumberOfRequests++;
                 requestId++;
                 System.out.println(tasks);
                 tasks.clear();
@@ -183,7 +199,7 @@ public class ProtoFrontend implements FrontendService.Iface {
 
             long startTime = System.currentTimeMillis();
             LOG.debug("sleeping");
-            while (System.currentTimeMillis() < startTime + exprTime) {
+            while(totalNumberOfRequests != completedRequestsCount) {
                 Thread.sleep(100);
             }
             taskLauncher.shutdown();
