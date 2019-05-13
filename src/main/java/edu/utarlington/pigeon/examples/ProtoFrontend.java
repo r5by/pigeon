@@ -84,7 +84,7 @@ public class ProtoFrontend implements FrontendService.Iface {
                 tasks.add(spec);
             }
             long start = System.currentTimeMillis();
-            try {
+            try {//TODO: record submitJob number.
                 client.submitJob(APPLICATION_ID, averageTasksD, tasks, USER);
             } catch (TException e) {
                 LOG.error("Scheduling request failed!", e);
@@ -151,18 +151,20 @@ public class ProtoFrontend implements FrontendService.Iface {
             while((str = bufferedReader.readLine()) != null)
             {
                 str = str+"\r\n";
-                String[] SubmissionTime =  str.split("\\s{1,}|\t");
+//                String[] SubmissionTime =  str.split("\\s{1,}|\t");
+                String[] SubmissionTime = str.split("\\s+|\t");
                 arrivalInterval = Double.parseDouble(SubmissionTime[0]);
 
                 arrivalIntervalinMilliSec = Double.valueOf(arrivalInterval * 1000).longValue();
 
                 averageDuriationMilliSec = Double.parseDouble(SubmissionTime[2]) * 1000;
 
-                String[] dictionary = str.split("\\s{2}|\t");
+                //String[] dictionary = str.split("\\s{2}|\t");
+//                String[] dictionary = str.split("\\s");
                 //tasks = null;
-                for(int i = 1;i<dictionary.length-1;i++){
+                for(int i = 3; i<SubmissionTime.length ;i++){
                     //change second to milliseconds
-                    double taskDinMilliSec = Double.valueOf(dictionary[i]) * 1000;
+                    double taskDinMilliSec = Double.valueOf(SubmissionTime[i]) * 1000;
                     tasks.add(taskDinMilliSec);
 
                 }
@@ -177,7 +179,6 @@ public class ProtoFrontend implements FrontendService.Iface {
                 System.out.println(tasks);
                 tasks.clear();
             }
-            System.out.println(tasks);
             inputStream.close();
             bufferedReader.close();
 
