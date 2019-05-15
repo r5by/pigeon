@@ -267,7 +267,7 @@ public class Scheduler {
 
         //Init records for the request
         LOG.debug("Pigeon start handling request: " + requestId + " at time stamp: " + start);
-        records.put(requestId, new RequestTasksRecords(start, totalTasks, false)); //Default the record as short
+        records.put(requestId, new RequestTasksRecords(start, totalTasks, true)); //Default the record as short
 
         TaskPlacer taskPlacer = new UnconstrainedTaskPlacer(requestId, totalTasks, this);
         requestTaskPlacers.put(requestId, taskPlacer);
@@ -496,7 +496,7 @@ public class Scheduler {
         /* When a task complete, decrease the reservations; if no reservations left record the end time stamp */
         void handleTaskComplete(boolean isHT) {
             remainingTasks--;
-            if(isHT) shortjob = isHT;
+            if(isHT != shortjob) shortjob = isHT;
             if(remainingTasks ==0)
                 end = System.currentTimeMillis();
         }
