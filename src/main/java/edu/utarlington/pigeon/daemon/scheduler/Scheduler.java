@@ -62,7 +62,7 @@ public class Scheduler {
     /**
      * Used to keep the reservation records of each arrived request; Initialized at handleJobSubmission; key->value is requestId -> defined book-keeping structure
      */
-    HashMap<String, RequestTasksRecords> records = new HashMap<String, RequestTasksRecords>();
+//    HashMap<String, RequestTasksRecords> records = new HashMap<String, RequestTasksRecords>();
 
     private THostPort address;
     private double cutoff;
@@ -266,8 +266,8 @@ public class Scheduler {
         int totalTasks = request.getTasksSize();
 
         //Init records for the request
-        LOG.debug("Pigeon start handling request: " + requestId + " at time stamp: " + start);
-        records.put(requestId, new RequestTasksRecords(start, totalTasks, true)); //Default the record as short
+//        LOG.debug("Pigeon start handling request: " + requestId + " at time stamp: " + start);
+//        records.put(requestId, new RequestTasksRecords(start, totalTasks, true)); //Default the record as short
 
         TaskPlacer taskPlacer = new UnconstrainedTaskPlacer(requestId, totalTasks, this);
         requestTaskPlacers.put(requestId, taskPlacer);
@@ -414,8 +414,8 @@ public class Scheduler {
 
         //When a task is completed, remove the task from the request
         String requestId = taskId.requestId;
-        RequestTasksRecords record = records.get(requestId);
-        record.handleTaskComplete(taskId.isHT);
+//        RequestTasksRecords record = records.get(requestId);
+//        record.handleTaskComplete(taskId.isHT);
 
         InetSocketAddress frontend = frontendSockets.get(app);
         if (frontend == null) {
@@ -424,34 +424,34 @@ public class Scheduler {
         try {
             FrontendService.AsyncClient client = frontendClientPool.borrowClient(frontend);
 
-            synchronized (record) {
-                if(record.allTasksCompleted()) { //If all tasks of the request completed, set status as 1 and pass the elapsed time to frontend output
-                    LOG.debug("Starting Time for request: " + requestId + ": " + record.start + ", end time is: " + record.end + ". Total elapsed time is " + record.elapsed());
-                    ByteBuffer msg = ByteBuffer.allocate(8);
-                    msg.putLong(record.elapsed());
-                    msg.position(0);
-
-                    /* The updated status:
-                     * 0: Original value, sent back to client if not all tasks completed
-                     * 1: All tasks completed for the request, and the request is short job
-                     * 2: All tasks completed for the request, and the request is long job
-                     * */
-                    int updatedStatus = status;
-
-                    if(record.isShortjob())
-                        updatedStatus = 1;
-                    else
-                        updatedStatus = 2;
-
-                    client.frontendMessage(taskId, updatedStatus, msg,
-                            new sendFrontendMessageCallback(frontend, client));
-
-                    records.remove(requestId);
-                } else {
-                    client.frontendMessage(taskId, status, message,
-                            new sendFrontendMessageCallback(frontend, client));
-                }
-            }
+//            synchronized (record) {
+//                if(record.allTasksCompleted()) { //If all tasks of the request completed, set status as 1 and pass the elapsed time to frontend output
+//                    LOG.debug("Starting Time for request: " + requestId + ": " + record.start + ", end time is: " + record.end + ". Total elapsed time is " + record.elapsed());
+//                    ByteBuffer msg = ByteBuffer.allocate(8);
+//                    msg.putLong(record.elapsed());
+//                    msg.position(0);
+//
+//                    /* The updated status:
+//                     * 0: Original value, sent back to client if not all tasks completed
+//                     * 1: All tasks completed for the request, and the request is short job
+//                     * 2: All tasks completed for the request, and the request is long job
+//                     * */
+//                    int updatedStatus = status;
+//
+//                    if(record.isShortjob())
+//                        updatedStatus = 1;
+//                    else
+//                        updatedStatus = 2;
+//
+//                    client.frontendMessage(taskId, updatedStatus, msg,
+//                            new sendFrontendMessageCallback(frontend, client));
+//
+//                    records.remove(requestId);
+//                } else {
+//                    client.frontendMessage(taskId, status, message,
+//                            new sendFrontendMessageCallback(frontend, client));
+//                }
+//            }
 //            client.frontendMessage(taskId, status, message,
 //                    new sendFrontendMessageCallback(frontend, client));
         } catch (IOException e) {

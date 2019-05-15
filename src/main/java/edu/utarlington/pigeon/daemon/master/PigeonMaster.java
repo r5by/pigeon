@@ -166,6 +166,7 @@ public class PigeonMaster {
 
             //Pigeon decides whether to send the task launch request or not based on the available resources
             for (TTaskLaunchSpec task : request.tasksToBeLaunched) {
+                LOG.debug("Pigeon master handling submitted task: " + task.taskId + " for request: " + request.requestID + " expected execDurationMillis: " + task.message.getLong());
                 InetSocketAddress worker = null;
                 if (task.isHT) {//For high priority tasks
                     if (!LIW.isEmpty()) {
@@ -209,7 +210,7 @@ public class PigeonMaster {
 
         //Instrument Pigeon to simulating send taskComplete() back to scheduler
         TFullTaskId t = task.get(0);
-        sendFrontendMessage(app, t, 0, null);
+//        sendFrontendMessage(app, t, 0, null);
 
         synchronized (state) {
             if (!occupiedWorkers.containsKey(idleWorker))

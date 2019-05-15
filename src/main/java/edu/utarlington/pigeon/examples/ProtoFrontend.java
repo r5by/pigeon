@@ -18,10 +18,7 @@ import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
 
 
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -104,11 +101,30 @@ public class ProtoFrontend implements FrontendService.Iface {
             case 1:
                 LOG.debug("All tasks for request: " + taskId.requestId + " have been completed Type " + "Short Job" + " The total elapsed time is: " + message.getLong(message.position()) + " ms");
                 completedRequestsCount++;
+                String requestInfo = "All tasks for request: " + taskId.requestId + " have been completed Type " + "Short Job" + " The total elapsed time is: " + message.getLong(message.position()) + " ms";
+                CreateNewTxt(requestInfo);
                 break;
             case 2:
                 LOG.debug("All tasks for request: " + taskId.requestId + " have been completed Type " + "Long Job" + " The total elapsed time is: " + message.getLong(message.position()) + " ms");
                 completedRequestsCount++;
+                requestInfo = "All tasks for request: " + taskId.requestId + " have been completed Type " + "Long Job" + " The total elapsed time is: " + message.getLong(message.position()) + " ms";
+                CreateNewTxt(requestInfo);
                 break;
+        }
+    }
+
+    /*Output txt file*/
+    public void CreateNewTxt(String requestInfo){
+        BufferedWriter output = null;
+        try {
+            File file = new File("requestInfo.txt");
+            output = new BufferedWriter(new OutputStreamWriter(
+                    new FileOutputStream(file, true), "utf-8"));
+            output.write(requestInfo+"\r\n");
+            output.flush();
+            output.close();
+        } catch ( IOException e ) {
+            e.printStackTrace();
         }
     }
 
@@ -178,6 +194,7 @@ public class ProtoFrontend implements FrontendService.Iface {
                 for(int i = 1;i<dictionary.length-1;i++){
                     //change second to milliseconds
                     double taskDinMilliSec = Double.valueOf(dictionary[i]) * 1000;
+                    LOG.debug("Task: " + taskDinMilliSec);
                     tasks.add(taskDinMilliSec);
 
                 }

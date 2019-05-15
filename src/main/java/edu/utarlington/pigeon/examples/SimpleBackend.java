@@ -130,6 +130,7 @@ public class SimpleBackend implements BackendService.Iface {
         public void run() {
             long startTime = System.currentTimeMillis();
             try {
+                LOG.debug("Task_" + taskId.taskId + " TaskDurationMillis: " +  taskDurationMillis);
                 Thread.sleep(taskDurationMillis);
             } catch (InterruptedException e) {
                 LOG.error("Interrupted while sleeping: " + e.getMessage());
