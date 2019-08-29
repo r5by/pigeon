@@ -1,5 +1,3 @@
-TBD
-<!--
 # Pigeon Scheduler (BETA)
 
 [Pigeon]() is a distributed, hierarchical job scheduler for datacenters, aiming at addressing the above issues. In Pigeon, workers are divided into groups. Each group has a master which manages all the tasks coming from distributed job schedulers and then distributes them to the workers in the group. Pigeon abandons the probe-and-late-task-binding process, underlying most existing distributed and hybrid schedulers. Upon receiving a job, a distributed scheduler in Pigeon immediately and evenly distributes all the tasks of the job to the masters, making it possible for Pigeon to deal with tiny jobs. In Pigeon, the job heterogeneity is well taken care of by masters through priority queuing and worker reservation for tasks belonging to short jobs at the task level, oblivious of job context and without having to introduce a centralized scheduler to handle long jobs, as is the case for the existing hybrid schedulers.
@@ -85,4 +83,3 @@ Pigeon is a research project within the [UT Arlington Systems Research Group](CS
 - Huiyang Li <huiyang.li@mavs.uta.edu>
 - Zhongwei Li <zhongwei.li@mavs.uta.edu>
 - Hao Che <hche@uta.edu>
--->
