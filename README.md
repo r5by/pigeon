@@ -1,6 +1,6 @@
 # Pigeon Scheduler (BETA)
 
-[Pigeon]() is a distributed, hierarchical job scheduler for datacenters, aiming at addressing the above issues. In Pigeon, workers are divided into groups. Each group has a master which manages all the tasks coming from distributed job schedulers and then distributes them to the workers in the group. Pigeon abandons the probe-and-late-task-binding process, underlying most existing distributed and hybrid schedulers. Upon receiving a job, a distributed scheduler in Pigeon immediately and evenly distributes all the tasks of the job to the masters, making it possible for Pigeon to deal with tiny jobs. In Pigeon, the job heterogeneity is well taken care of by masters through priority queuing and worker reservation for tasks belonging to short jobs at the task level, oblivious of job context and without having to introduce a centralized scheduler to handle long jobs, as is the case for the existing hybrid schedulers.
+[Pigeon](http://crystal.uta.edu/~hche/mslo.html) is a distributed, hierarchical job scheduler for datacenters, aiming at addressing the above issues. In Pigeon, workers are divided into groups. Each group has a master which manages all the tasks coming from distributed job schedulers and then distributes them to the workers in the group. Pigeon abandons the probe-and-late-task-binding process, underlying most existing distributed and hybrid schedulers. Upon receiving a job, a distributed scheduler in Pigeon immediately and evenly distributes all the tasks of the job to the masters, making it possible for Pigeon to deal with tiny jobs. In Pigeon, the job heterogeneity is well taken care of by masters through priority queuing and worker reservation for tasks belonging to short jobs at the task level, oblivious of job context and without having to introduce a centralized scheduler to handle long jobs, as is the case for the existing hybrid schedulers.
 
 ## Installation
 
@@ -76,7 +76,7 @@ Please refer to [here](https://github.com/ruby-/spark-parent_2.11.git) for our P
 
 ## Research
 
-Pigeon is a research project within the [UT Arlington Systems Research Group](CSESYS@LISTSERV.UTA.EDU). The Pigeon team consists of Huiyang Li, Zhijun Wang, Hao Che and Zhongwei Li, please contact us for details about Pigeon Scheduler via the following email addresses.
+Pigeon is a research project within the [UT Arlington Abacus Cloud and Edge Systems](http://crystal.uta.edu/~hche/index.html). The Pigeon team consists of Huiyang Li, Zhijun Wang, Hao Che and Zhongwei Li, please contact us for details about Pigeon Scheduler via the following email addresses.
 
 ## Contact
 - Zhijun Wang <zhijun.wang@uta.edu>
