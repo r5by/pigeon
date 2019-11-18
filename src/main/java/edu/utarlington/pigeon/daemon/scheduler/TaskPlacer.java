@@ -1,6 +1,25 @@
+/*
+ * PIGEON
+ * Copyright 2018 Univeristy of Texas at Arlington
+ *
+ * Modified from Sparrow - University of California, Berkeley
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
 package edu.utarlington.pigeon.daemon.scheduler;
 
-//import edu.utarlington.pigeon.thrift.TEnqueueTaskReservationsRequest;
 import edu.utarlington.pigeon.thrift.THostPort;
 import edu.utarlington.pigeon.thrift.TSchedulingRequest;
 import edu.utarlington.pigeon.thrift.TTaskLaunchSpec;
@@ -23,7 +42,6 @@ public interface TaskPlacer {
      *
      * After this method is called once, the TaskPlacer assumes all those node monitors were sent
      * cancellation messages, so it will not return any node monitors in the future. */
-//    public Set<THostPort> getOutstandingNodeMonitorsForCancellation();
 
     /**
      * Enqueue task request */

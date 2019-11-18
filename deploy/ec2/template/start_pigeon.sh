@@ -22,7 +22,7 @@ fi
 
 # -XX:MaxGCPauseMillis=3 
 # removed nice -n -20
-nohup java -XX:+UseConcMarkSweepGC -verbose:gc -XX:+PrintGCTimeStamps -Xmx2046m -XX:+PrintGCDetails -cp pigeon-1.0-SNAPSHOT.jar edu.utarlington.pigeon.daemon.PigeonDaemon -c pigeon.conf > $LOG 2>&1 &
+nohup java -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8890 -XX:+UseConcMarkSweepGC -verbose:gc -XX:+PrintGCTimeStamps -Xmx2046m -XX:+PrintGCDetails -cp pigeon-1.0-SNAPSHOT.jar edu.utarlington.pigeon.daemon.PigeonDaemon -c pigeon.conf > $LOG 2>&1 &
 PID=$!
 echo "Logging to $LOG"
 sleep 1

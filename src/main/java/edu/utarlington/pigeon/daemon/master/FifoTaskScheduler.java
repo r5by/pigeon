@@ -44,11 +44,6 @@ public class FifoTaskScheduler extends TaskScheduler {
     private final static Logger LOG = Logger.getLogger(FifoTaskScheduler.class);
 
     public int maxActiveTasks;
-    //TODO: Decoupling the two classes...
-//    private PigeonMaster master;
-//    private Integer activeTasks;
-//    public LinkedBlockingQueue<TaskSpec> taskReservations =
-//            new LinkedBlockingQueue<TaskSpec>();
 
     //    /** Thrift client pool for communicating with Pigeon scheduler */
     ThriftClientPool<RecursiveService.AsyncClient> recursiveClientPool =
@@ -57,37 +52,12 @@ public class FifoTaskScheduler extends TaskScheduler {
 
     /** Available workers passed from master, should be invoked only at startup of master and this scheduler */
     public FifoTaskScheduler() {
-//        this.master = master;
         maxActiveTasks = -1;
-//        activeTasks = 0;
     }
 
     @Override
     void handleSubmitTaskLaunchRequest(TaskSpec taskToBeLaucnhed) {
-//        if (activeTasks < maxActiveTasks) {
-//            if (taskReservations.size() > 0) {
-//                String errorMessage = "activeTasks should be less than maxActiveTasks only " +
-//                        "when no outstanding reservations.";
-//                LOG.error(errorMessage);
-//                throw new IllegalStateException(errorMessage);
-//            }
             makeTaskRunnable(taskToBeLaucnhed);
-//            ++activeTasks;
-//            LOG.debug("Making task: " + taskToBeLaucnhed.taskSpec.taskId + " for request " + taskToBeLaucnhed.requestId + " runnable (" +
-//                    activeTasks + " of " + maxActiveTasks + " task slots currently filled)");
-//            return 0;
-//        }
-//        LOG.debug("All " + maxActiveTasks + " task slots filled.");
-//        int queuedReservations = taskReservations.size();
-//        try {
-//            LOG.debug("Enqueueing task reservation with request id " + taskToBeLaucnhed.requestId +
-//                    " because all task slots filled. " + queuedReservations +
-//                    " already enqueued reservations.");
-//            taskReservations.put(taskToBeLaucnhed);
-//        } catch (InterruptedException e) {
-//            LOG.fatal(e);
-//        }
-//        return queuedReservations;
     }
 
     @Override
@@ -115,20 +85,6 @@ public class FifoTaskScheduler extends TaskScheduler {
         return attemptTaskLaunch(request, reservation);
     }
 
-//    @Override
-//    protected boolean handleTaskFinished(String requestId, String taskId, THostPort schedulerAddress, InetSocketAddress backendAddress) {
-        //Attempt to fetch a new task
-
-//        TaskSpec reservation = new TaskSpec(requestId, taskId, schedulerAddress, backendAddress);
-//        try {
-//            taskReservations.put(reservation);
-//        } catch (InterruptedException e) {
-//            e.printStackTrace();
-//        }
-
-//        attemptTaskLaunch(requestId, taskId);
-//    }
-
     @Override
     protected void handleNoTasksReservations(String appId, String requestId, InetSocketAddress scheduler, THostPort master) {
         InetSocketAddress schedulerAddress = Network.constructSocket(scheduler, 20507);
@@ -139,7 +95,6 @@ public class FifoTaskScheduler extends TaskScheduler {
         } catch (Exception e) {
             e.printStackTrace();
         }
-//        makeTaskRunnable(new TaskSpec(appId, requestId, scheduler));
     }
 
     private class TasksFinishedCallBack
@@ -170,11 +125,6 @@ public class FifoTaskScheduler extends TaskScheduler {
             LOG.debug(e.getMessage());
         }
     }
-
-//    @Override
-//    protected void handleNoTasksReservations(TaskSpec taskSpec) {
-////        attemptTaskLaunch(taskSpec.previousRequestId, taskSpec.previousTaskId);
-//    }
 
     /**
      * Attempts to launch a new task.

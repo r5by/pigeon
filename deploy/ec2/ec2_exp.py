@@ -154,6 +154,16 @@ def ssh_all(hosts, opts, command):
   parallel_commands(commands, 0)
 
 # Start all pigeon protoFrontends
+def ssh_all_protofrontends(frontends, opts):
+    commands = []
+    for fe in frontends:
+        command = "/root/start_proto_frontend.sh %s %s" % (frontends.index(fe), opts.frontends)
+        cmd = "ssh -t -o StrictHostKeyChecking=no -i %s root@%s '%s'" % \
+              (opts.identity_file, fe.public_dns_name, command)
+        commands.append(cmd)
+    parallel_commands(commands, 0)
+
+# Start all pigeon protoFrontends
 def ssh_all_backends(backends, opts):
     commands = []
     m = opts.num_of_masters
@@ -428,8 +438,9 @@ def start_proto(frontends, backends, opts):
   ssh_all_backends(backends, opts)
 
   print "Starting Proto frontends..."
-  ssh_all([fe.public_dns_name for fe in frontends], opts,
-          "/root/start_proto_frontend.sh" )
+  # ssh_all([fe.public_dns_name for fe in frontends], opts,
+  #         "/root/start_proto_frontend.sh" )
+  ssh_all_protofrontends(frontends, opts)
 
 # Start the prototype backends/frontends
 def stop_proto(frontends, backends, opts):
@@ -445,13 +456,13 @@ def collect_logs(frontends, backends, opts):
   print "Zipping logs..."
   ssh_all([fe.public_dns_name for fe in frontends], opts,
           "/root/prepare_logs.sh")
-  # ssh_all([be.public_dns_name for be in backends], opts,
-  #         "/root/prepare_logs.sh")
+  ssh_all([be.public_dns_name for be in backends], opts,
+          "/root/prepare_logs.sh")
   print "Hauling logs"
   rsync_from_all([fe.public_dns_name for fe in frontends], opts,
     "*.tar.gz", opts.log_dir, len(frontends))
-  # rsync_from_all([be.public_dns_name for be in backends], opts,
-  #   "*.tar.gz", opts.log_dir, len(backends))
+  rsync_from_all([be.public_dns_name for be in backends], opts,
+    "*.tar.gz", opts.log_dir, len(backends))
 #  f = open(os.path.join(opts.log_dir, "params.txt"), 'w')
 #  for (k, v) in opts.__dict__.items():
 #    f.write("%s\t%s\n" % (k, v))

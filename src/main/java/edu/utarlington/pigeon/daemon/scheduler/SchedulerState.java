@@ -45,7 +45,6 @@ public interface SchedulerState {
      * @param backendAddr
      * @return
      */
-//    public boolean isHW (InetSocketAddress backendAddr);
 
     /**
      * Signal that state storage will be queried for information about
@@ -60,7 +59,5 @@ public interface SchedulerState {
      *
      * For pigeon, this function also returned hw/lw backends separately
      */
-//    public Set<InetSocketAddress> getBackends(String appId, boolean isHW);
-//    public Set<InetSocketAddress> getBackends(boolean isHW);
     public Set<InetSocketAddress> getMasters();
 }

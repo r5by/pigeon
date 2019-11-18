@@ -27,7 +27,7 @@ if [ ! $APPCHK = '0' ]; then
 fi
 
 # Wait for daemon ready
-sleep 5
+sleep 10
 nohup java -cp pigeon-1.0-SNAPSHOT.jar edu.utarlington.pigeon.examples.SimpleBackend -c backend.conf  > $LOG 2>&1 &
 
 PID=$!

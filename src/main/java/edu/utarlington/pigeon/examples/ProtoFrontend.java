@@ -1,3 +1,23 @@
+/*
+ * PIGEON
+ * Copyright 2018 Univeristy of Texas at Arlington
+ *
+ * Modified from Sparrow - University of California, Berkeley
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
 package edu.utarlington.pigeon.examples;
 
 import edu.utarlington.pigeon.api.PigeonFrontendClient;
@@ -47,6 +67,9 @@ public class ProtoFrontend implements FrontendService.Iface {
      * trace file config.
      */
     public static final String TR_PATH = "tr_path";
+    /* For multi-schedulers */
+    public static final String SCHEDULER_ID = "scheduler_id";
+    public static final String SCHEDULER_SIZE = "scheduler_size";
 
     private static final TUserGroupInfo USER = new TUserGroupInfo();
 
@@ -154,6 +177,9 @@ public class ProtoFrontend implements FrontendService.Iface {
             String trPath = conf.getString(TR_PATH);
 //            Double traceCutOff = conf.getDouble(TR_CUTOFF, TR_CUTOFF_DEFAULT);
 //            traceCutOffMilliSec = traceCutOff.longValue();
+            int counter = 0;
+            int schedulerId = conf.getInt(SCHEDULER_ID);
+            int schedulerSize = conf.getInt(SCHEDULER_SIZE);
 
             int schedulerPort = conf.getInt(SCHEDULER_PORT,
                     SchedulerThrift.DEFAULT_SCHEDULER_THRIFT_PORT);
@@ -181,35 +207,41 @@ public class ProtoFrontend implements FrontendService.Iface {
 
             while((str = bufferedReader.readLine()) != null)
             {
-                str = str+"\r\n";
-                String[] SubmissionTime =  str.split("\\s{1,}|\t");
-                arrivalInterval = Double.parseDouble(SubmissionTime[0]);
+                if(counter % schedulerSize == schedulerId) {
+                    str = str+"\r\n";
+//                String[] SubmissionTime =  str.split("\\s{1,}|\t");
+                    String[] SubmissionTime = str.split("\\s+|\t");
+                    arrivalInterval = Double.parseDouble(SubmissionTime[0]);
 
-                arrivalIntervalinMilliSec = Double.valueOf(arrivalInterval * 1000).longValue();
+                    arrivalIntervalinMilliSec = Double.valueOf(arrivalInterval * 1000).longValue();
 
-                averageDuriationMilliSec = Double.parseDouble(SubmissionTime[2]) * 1000;
+                    averageDuriationMilliSec = Double.parseDouble(SubmissionTime[2]) * 1000;
 
-                String[] dictionary = str.split("\\s{2}|\t");
-                //tasks = null;
-                for(int i = 1;i<dictionary.length-1;i++){
-                    //change second to milliseconds
-                    double taskDinMilliSec = Double.valueOf(dictionary[i]) * 1000;
-                    LOG.debug("Task: " + taskDinMilliSec);
-                    tasks.add(taskDinMilliSec);
+                    //String[] dictionary = str.split("\\s{2}|\t");
+//                String[] dictionary = str.split("\\s");
+                    //tasks = null;
+                    for(int i = 3; i<SubmissionTime.length ;i++){
+                        //change second to milliseconds
+                        double taskDinMilliSec = Double.valueOf(SubmissionTime[i]) * 1000;
+                        tasks.add(taskDinMilliSec);
 
+                    }
+
+                    //Estimated experiment duration
+                    exprTime += averageDuriationMilliSec * tasks.size();
+
+                    ProtoFrontend.JobLaunchRunnable runnable = new JobLaunchRunnable(arrivalIntervalinMilliSec, averageDuriationMilliSec,tasks);
+                    taskLauncher.schedule(runnable,  arrivalIntervalinMilliSec, TimeUnit.MILLISECONDS);
+
+                    totalNumberOfRequests++;
+                    requestId++;
+                    System.out.println(tasks);
+                    tasks.clear();
                 }
 
-                //Estimated experiment duration
-                exprTime += averageDuriationMilliSec * tasks.size();
-
-                ProtoFrontend.JobLaunchRunnable runnable = new JobLaunchRunnable(arrivalIntervalinMilliSec, averageDuriationMilliSec,tasks);
-                taskLauncher.schedule(runnable,  arrivalIntervalinMilliSec, TimeUnit.MILLISECONDS);
-
-                totalNumberOfRequests++;
-                requestId++;
-                System.out.println(tasks);
-                tasks.clear();
+                counter++;
             }
+
             System.out.println(tasks);
             inputStream.close();
             bufferedReader.close();

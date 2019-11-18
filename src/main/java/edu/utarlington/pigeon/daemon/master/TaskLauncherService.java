@@ -55,7 +55,6 @@ import java.util.concurrent.Executors;
 //TODO: Logging
 public class TaskLauncherService {
     private final static Logger LOG = Logger.getLogger(TaskLauncherService.class);
-//    private final static Logger AUDIT_LOG = Logging.getAuditLogger(TaskLauncherService.class);
 
     /* The number of threads used by the service. */
     private int numThreads;
@@ -79,7 +78,6 @@ public class TaskLauncherService {
             while (true) {
                 TaskSpec task = scheduler.getNextTask(); // blocks until task is ready
                 if (task.taskSpec == null) {
-//                    executeRecursiveCall(task);
                     LOG.error("Unexpected empty task obtained!");
                 }
 
@@ -92,36 +90,11 @@ public class TaskLauncherService {
         /** Uses a tasksFinished() RPC to inform the appropriate scheduler tasks finished, triggered by a dummy TaskSpec created by TaskScheduler
          * upon receiving handleNoTasksReservations() request from master node */
         private void executeRecursiveCall(TaskSpec task) {
-//            String schedulerAddress = task.schedulerAddress.getAddress().getHostAddress();
-//            if (!schedulerClients.containsKey(schedulerAddress)) {
-//                try {
-//                    schedulerClients.put(schedulerAddress,
-//                            TClients.createBlockingRecursiveClient(
-//                                    task.schedulerAddress.getAddress().getHostAddress(),
-//                                    SchedulerThrift.DEFAULT_RECURSIVE_SERVICE_PORT));
-//                } catch (IOException e) {
-//                    LOG.error("Error creating thrift client: " + e.getMessage());
-//                }
-//            }
-//            RecursiveService.Client recursiveClient = schedulerClients.get(schedulerAddress);
-
-//            long startGCCount = Logging.getGCCount();
-
-
-//            AUDIT_LOG.debug(Logging.auditEventString("node_monitor_get_task_launch", task.requestId,
-//                    nodeMonitorInternalAddress.getHost()));
         }
 
         /**
          * Used for Pigeon task launch request wrapper
          */
-//        private List<TTaskLaunchSpec> unWrapLaunchTaskRequest(TLaunchTasksRequest requests) {
-//            List<TTaskLaunchSpec> taskLaunchSpecs = Lists.newArrayList();
-//            if(requests.getRequestID() != null && !requests.getTasksToBeLaunched().isEmpty()) {
-//                taskLaunchSpecs = requests.getTasksToBeLaunched();
-//            }
-//            return taskLaunchSpecs;
-//        }
 
         /** Executes an RPC to launch a task on an application backend. */
         private void executeLaunchTaskRpc(TaskSpec task) {

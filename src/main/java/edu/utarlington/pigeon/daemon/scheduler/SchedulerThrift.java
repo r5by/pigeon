@@ -99,7 +99,6 @@ public class SchedulerThrift implements SchedulerService.Iface, RecursiveService
         TServers.launchThreadedThriftServer(schedulerServicePort, threads, processor);
         RecursiveService.Processor<RecursiveService.Iface> recursiveServiceProcessor =
                 new RecursiveService.Processor<RecursiveService.Iface>(this);
-//        TServers.launchSingleThreadThriftServer(recursivePort, recursiveServiceProcessor);
         TServers.launchThreadedThriftServer(recursivePort, threads, recursiveServiceProcessor);
 
     }
