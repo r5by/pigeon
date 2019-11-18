@@ -1,0 +1,67 @@
+This script automates the deployment of a Pigeon cluster on ec2. To use it:
+
+1) Get an ec2 account.
+
+2) Get your access key ID and value from ec2. You need to have these available
+   in environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+   respectively.
+
+3) Generate a key-pair in the AWS control panel in the "US East" datacenter.
+
+4) Run ./ec2_exp.sh --help to see how the script works.
+
+   The basic workflow would is usually like this.
+   # Launch instances
+   # full name to .pem key file needs to be passed in
+   # Following command will launch a cluster named "Pigeon",  create 2 backends and 1 frontend with m4.large instance type on EC2
+   # NOTE: VPC AMI chosen needs to support m4 series instances
+   ./ec2-exp.sh launch pigeon -k exprkey -i /Users/mac/.ssh/exprkey.pem -b 4 -f 1 -t m4.large -a ami-7c9a0115
+
+
+   # Deploy Pigeon files, waiting 100 seconds for instances to boot before
+   # attempting to contact them. Note: This command must be run when change the trace file.
+   # Following command will Deploy Pigeon files to each node and write YH2.tr as trace file, 2 masters, cur-off time 10000.00 ms.
+   ./ec2-exp.sh deploy pigeon -i /Users/mac/.ssh/exprkey.pem -l YH2.tr --cpus 1 -m 2 --trace-cut-off 10000.00
+
+   # Start Pigeon daemons on each frontend and master
+   # Following command will start pigeon daemons on each frontend and master and the number of master is 2
+   ./ec2-exp.sh start-pigeon pigeon -i /Users/mac/.ssh/exprkey.pem -m 2
+
+   # Start proto application (reading trace files)
+   # Following command will start proto application on each node with 2 master, 1 frontend and 50% high worker of all workers.
+   ./ec2-exp.sh start-proto pigeon -i /Users/mac/.ssh/exprkey.pem -m 2 -p 0.5 -f 1
+
+
+    # Collect logs to local directories for later analytics
+    # Following command will collect logs to local (defult path: /tmp/)
+    ./ec2-exp.sh collect-logs pigeon -i /Users/mac/.ssh/exprkey.pem
+
+   # Stop proto application
+   # Following command will stop proto application on each node
+   ./ec2-exp.sh stop-proto pigeon -i /Users/mac/.ssh/exprkey.pem
+
+   # Stop Pigeon
+   # Following command will stop daemon on each frontend and master
+   ./ec2-exp.sh stop-pigeon pigeon -i /Users/mac/.ssh/exprkey.pem
+
+   # Shut down the cluster (terminate)
+   # Following command will terminate all the instance
+   ./ec2-exp.sh terminate pigeon -i /Users/mac/.ssh/exprkey.pem
+
+# Parameters:
+    # 1. -k <Key pair to use on instances> // Set up when "Launch instances"
+    # 2. -i <SSH private key file to use for logging into instances> // Set up when "Launch instances"
+    # 3. -z <Availability zone to launch instances in> // Set up when "Launch instances"
+    # 4. -a <Amazon Machine Image ID to use (use ami-7c9a0115 for HVM instance types)> // Set up when "Launch instances"
+    # 5. -t <Type of instance to launch (default: m2.2xlarge). > //WARNING: must be 64 bit, thus small instances won't work // Set up when "Launch instances"
+    # 6. -f <Number of frontends to launch (default: 1)> // Set up when "Launch instances"
+    # 7. -b <Number of backends to launch (default: 1)> // Set up when "Launch instances"
+    # 8. -m <The number of pigeon masters (default: 3)>  // Set up when "Deploy Pigeon files", "Start Pigeon daemons" and "Start proto application"
+    # 9. -w <Number of seconds to wait for cluster nodes to boot (default: 0)>
+    # 10.-g <Which git branch to checkout>
+    # 11.-d <Local directory into which log files are copied> // Set up when "Deploy Pigeon files"
+    # 12.-y <Time to wait between killing backends and frontends> // Set up when "Stop proto application"
+    # 13.--cup <Number of cpus on the machine, used to determine how many concurrent tasks to run> // Set up when "Deploy Pigeon files"
+    # 14.-p <The percentage of high workers (reserved for short job) in all backends> // Set up when "Start proto application"
+    # 15.-l <Trace file location> // Set up when "Deploy Pigeon files"
+    # 16.--trace-cut-off <The threshold for pigeon to determine whether it's long/short job> // Unit ms Set up when "Deploy Pigeon files"

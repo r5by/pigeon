@@ -54,10 +54,10 @@ import java.io.Writer;
 //TODO: Scheduling more than 1 task to be sent to node monitor with sufficient resources
 public class Scheduler {
     private final static Logger LOG = Logger.getLogger(Scheduler.class);
-//    private final static Logger AUDIT_LOG = Logging.getAuditLogger(Scheduler.class);
 
     /** Used to uniquely identify requests arriving at this scheduler. */
     private AtomicInteger counter = new AtomicInteger(0);
+
 
     private THostPort address;
     private double cutoff;
@@ -87,12 +87,6 @@ public class Scheduler {
 
     /**
      * Pigeon
-     * High/low priority idle worker lists
-     */
-//    public List<InetSocketAddress> HIW;
-//    public List<InetSocketAddress> LIW;
-    /**
-     * Pigeon
      * Master nodes list
       */
     public List<InetSocketAddress> pigeonMasters;
@@ -110,8 +104,6 @@ public class Scheduler {
      * addition to the SPREAD_EVENLY descriptor) because only the reduce phase -- not the map
      * phase -- should be spread.
      */
-    //TODO: Enable evenly spread tasks
-//    private int spreadEvenlyTaskSetSize;
 
     private Configuration conf;
 
@@ -131,15 +123,12 @@ public class Scheduler {
 
         state.initialize(conf);
 
-//        HIW =new ArrayList<InetSocketAddress>(state.getBackends(true));
-//        LIW =new ArrayList<InetSocketAddress>(state.getBackends(false));
         pigeonMasters = new ArrayList<InetSocketAddress>(state.getMasters());
 
         requestTaskPlacers = Maps.newConcurrentMap();
     }
 
     public boolean registerFrontend(String appId, String addr) {
-//        LOG.debug(Logging.functionCall(appId, addr));
         Optional<InetSocketAddress> socketAddress = Serialization.strToSocket(addr);
         if (!socketAddress.isPresent()) {
             LOG.error("Bad address from frontend: " + addr);
@@ -149,60 +138,6 @@ public class Scheduler {
         return state.watchApplication(appId);
     }
 
-    /** Adds constraints such that tasks in the job will be spread evenly across the cluster.
-     *
-     *  We expect three of these special jobs to be submitted; 3 sequential calls to this
-     *  method will result in spreading the tasks for the 3 jobs across the cluster such that no
-     *  more than 1 task is assigned to each machine.
-     */
-    //TODO: (Huiyang )Add evenly spread tasks constraints support for pigeon
-//    private TSchedulingRequest addConstraintsToSpreadTasks(TSchedulingRequest req)
-//            throws TException {
-//        LOG.info("Handling spread tasks request: " + req);
-//        int specialCaseIndex = specialCaseCounter.incrementAndGet();
-//        if (specialCaseIndex < 1 || specialCaseIndex > 3) {
-//            LOG.error("Invalid special case index: " + specialCaseIndex);
-//        }
-//
-//        // No tasks have preferences and we have the magic number of tasks
-//        TSchedulingRequest newReq = new TSchedulingRequest();
-//        newReq.user = req.user;
-//        newReq.app = req.app;
-//        newReq.probeRatio = req.probeRatio;
-//
-//        List<InetSocketAddress> allBackends = Lists.newArrayList();
-//        List<InetSocketAddress> backends = Lists.newArrayList();
-//        // We assume the below always returns the same order (invalid assumption?)
-//        for (InetSocketAddress backend : state.getBackends(req.app, false)) {
-//            allBackends.add(backend);
-//        }
-//
-//        // Each time this is called, we restrict to 1/3 of the nodes in the cluster
-//        for (int i = 0; i < allBackends.size(); i++) {
-//            if (i % 3 == specialCaseIndex - 1) {
-//                backends.add(allBackends.get(i));
-//            }
-//        }
-//        Collections.shuffle(backends);
-//
-//        if (!(allBackends.size() >= (req.getTasks().size() * 3))) {
-//            LOG.error("Special case expects at least three times as many machines as tasks.");
-//            return null;
-//        }
-//        LOG.info(backends);
-//        for (int i = 0; i < req.getTasksSize(); i++) {
-//            TTaskSpec task = req.getTasks().get(i);
-//            TTaskSpec newTask = new TTaskSpec();
-//            newTask.message = task.message;
-//            newTask.taskId = task.taskId;
-//            newTask.isHT = task.isHT;
-//            newTask.preference = new TPlacementPreference();
-//            newTask.preference.addToNodes(backends.get(i).getHostName());
-//            newReq.addToTasks(newTask);
-//        }
-//        LOG.info("New request: " + newReq);
-//        return newReq;
-//    }
 
     /** Checks whether we should add constraints to this job to evenly spread tasks over machines.
      *
@@ -212,32 +147,7 @@ public class Scheduler {
      *
      * We signal that Sparrow should use this hack by adding SPREAD_TASKS to the job's description.
      */
-    //TODO: Spread task support
     private boolean isSpreadTasksJob(TSchedulingRequest request) {
-//        if ((request.getDescription() != null) &&
-//                (request.getDescription().indexOf("SPREAD_EVENLY") != -1)) {
-//            // Need to check to see if there are 3 constraints; if so, it's the map phase of the
-//            // first job that reads the data from HDFS, so we shouldn't override the constraints.
-//            for (TTaskSpec t: request.getTasks()) {
-//                if (t.getPreference() != null && (t.getPreference().getNodes() != null)  &&
-//                        (t.getPreference().getNodes().size() == 3)) {
-//                    LOG.debug("Not special case: one of request's tasks had 3 preferences");
-//                    return false;
-//                }
-//            }
-//            if (request.getTasks().size() != spreadEvenlyTaskSetSize) {
-//                LOG.debug("Not special case: job had " + request.getTasks().size() +
-//                        " tasks rather than the expected " + spreadEvenlyTaskSetSize);
-//                return false;
-//            }
-//            if (specialCaseCounter.get() >= 3) {
-//                LOG.error("Not using special case because special case code has already been " +
-//                        " called 3 more more times!");
-//                return false;
-//            }
-//            LOG.debug("Spreading tasks for job with " + request.getTasks().size() + " tasks");
-//            return true;
-//        }
         LOG.debug("Not special case: description did not contain SPREAD_EVENLY");
         return false;
     }
@@ -246,19 +156,16 @@ public class Scheduler {
         // Short-circuit case that is used for liveness checking
         if (request.tasks.size() == 0) { return; }
         if (isSpreadTasksJob(request)) {
-            //TODO: (Huiyang) Add constrained tasks support
-//            handleJobSubmission(addConstraintsToSpreadTasks(request));
-        } else {
+         } else {
             handleJobSubmission(request);
         }
     }
 
-    //TODO: (Huiyang) 1) Impl Constrained scenario 2) Audit logging support
     public void handleJobSubmission(TSchedulingRequest request) throws TException {
-//        LOG.debug(Logging.functionCall(request));
         long start = System.currentTimeMillis();
         String requestId = getRequestId();
         int totalTasks = request.getTasksSize();
+
 
         TaskPlacer taskPlacer = new UnconstrainedTaskPlacer(requestId, totalTasks, this);
         requestTaskPlacers.put(requestId, taskPlacer);
@@ -276,26 +183,28 @@ public class Scheduler {
     }
 
 
-    //todo:
     //TODO: 1) Impl Constrained scenario 2) Audit logging support
     public void tasksFinished(String requestId, THostPort masterAddress) {
         LOG.debug("Tasks completed by master node:" + masterAddress);
 
         TaskPlacer taskPlacer = requestTaskPlacers.get(requestId);
         if (taskPlacer != null) {
-            //Only keep records here for logging purpose
-            taskPlacer.count(masterAddress);
-            LOG.debug(taskPlacer.completedTasks() + "/" + taskPlacer.totalTasks() + " of request: " + requestId + " has been completed.");
+            synchronized (taskPlacer) {
+                //Only keep records here for logging purpose, note the counter need to be atomic with allTasksPlaced() for mutil-access purpose
+                taskPlacer.count(masterAddress);
+                LOG.debug(taskPlacer.completedTasks() + "/" + taskPlacer.totalTasks() + " of request: " + requestId + " has been completed.");
 
-            if (taskPlacer.allTasksPlaced()) {
-                LOG.debug("All tasks for request:" + requestId + " has been completed!");
-                //TODO: merging with logging support: write-out the request execution time for requestId
-                long latency = taskPlacer.getExecDurationMillis(System.currentTimeMillis());
-                LOG.debug("Request: " + requestId + " Request Type: " + taskPlacer.getPriority() + " exec latency: " + latency);
-                String requestInfo = "Request: " + requestId + " Request Type: " + taskPlacer.getPriority() + " exec latency: " + latency;
-                CreateNewTxt(requestInfo);
-                requestTaskPlacers.remove(requestId);
+                if (taskPlacer.allTasksPlaced()) {
+                    LOG.debug("All tasks for request:" + requestId + " has been completed!");
+                    //TODO: merging with logging support: write-out the request execution time for requestId
+                    long latency = taskPlacer.getExecDurationMillis(System.currentTimeMillis());
+                    LOG.debug("Request: " + requestId + " Request Type: " + taskPlacer.getPriority() + " exec latency: " + latency);
+                    String requestInfo = "Request: " + requestId + " Request Type: " + taskPlacer.getPriority() + " exec latency: " + latency;
+                    CreateNewTxt(requestInfo);
+                    requestTaskPlacers.remove(requestId);
+                }
             }
+
         }
     }
 
@@ -313,52 +222,6 @@ public class Scheduler {
         }
     }
 
-//    public TLaunchTasksRequest getTask(String requestId, THostPort masterAddress) {
-//        LOG.debug("Processing getTask() RPC call from node monitor: " + masterAddress);
-//
-//        TaskPlacer taskPlacer = requestTaskPlacers.get(requestId);
-//
-//        if (taskPlacer != null) {
-//            //Only keep records here for logging purpose
-//            taskPlacer.count();
-//            LOG.debug(taskPlacer.completedTasks() + "/" + taskPlacer.totalTasks() + " of request: " + requestId + " has been completed.");
-//
-//            if (taskPlacer.allTasksPlaced()) {
-//                LOG.debug("All tasks for request:" + requestId + " has been completed!");
-//                requestTaskPlacers.remove(requestId);
-//            }
-//        }
-//
-//        /** H/LIW and H/LTQ should be accessed in synchronized way*/
-//        synchronized (state) {
-//            InetSocketAddress worker = Network.thriftToSocketAddress(masterAddress);
-//
-////            List<TLaunchTaskRequest> taskLaunchSpecs = Lists.newArrayList();
-//            TLaunchTasksRequest request = null;
-//
-////            if (isHW(worker)) {//If received idle worker is from a high priority worker list
-////                if (!isHTQEmpty()) {
-////                    request = HTQ.poll();
-////                } else
-////                    addWorker(worker);
-////            } else {//If received idle worker is from a low priority worker list
-////                if (!isHTQEmpty()) {
-////                    request = HTQ.poll();
-////                } else if (!isLTQEmpty()) {
-////                    request = LTQ.poll();
-////                } else
-////                    addWorker(worker);
-////            }
-//
-//            if(request == null) {
-//                LOG.debug("No more tasks need to be assigned to this node monitor: " + masterAddress + ", putting it to idle worker list.");
-//                //If no more tasks need to be send, return a dummy feedback to nm to inform it no more tasks for it
-//                request = new TLaunchTasksRequest();
-//            }
-//
-//            return request;
-//        }
-//    }
 
     /**
      * Returns an ID that identifies a request uniquely (across all Pigeon schedulers).
@@ -398,15 +261,16 @@ public class Scheduler {
 
     public void sendFrontendMessage(String app, TFullTaskId taskId,
                                     int status, ByteBuffer message) {
-//        LOG.debug(Logging.functionCall(app, taskId, message));
+
+        //When a task is completed, remove the task from the request
+        String requestId = taskId.requestId;
+
         InetSocketAddress frontend = frontendSockets.get(app);
         if (frontend == null) {
             LOG.error("Requested message sent to unregistered app: " + app);
         }
         try {
             FrontendService.AsyncClient client = frontendClientPool.borrowClient(frontend);
-            client.frontendMessage(taskId, status, message,
-                    new sendFrontendMessageCallback(frontend, client));
         } catch (IOException e) {
             LOG.error("Error launching message on frontend: " + app, e);
         } catch (TException e) {
@@ -425,6 +289,50 @@ public class Scheduler {
 
     public double getCutoff() {
         return this.cutoff;
+    }
+
+    //===============================
+    // Extension: Instruments
+    //===============================
+
+    /**
+     * Per-request related reservation book-keeping. Used to instrument Sparrow so we know the elapsed time for every request (the time starting from incoming request gets scheduled, to the last of its task finished)
+     */
+    class RequestTasksRecords {
+        long start;
+        long end;
+        int remainingTasks;
+        boolean shortjob;
+
+        RequestTasksRecords(long pStart, int tasksSize, boolean isShortjob) {
+            start = pStart;
+            remainingTasks = tasksSize;
+            shortjob = isShortjob;
+        }
+
+        /* When a task complete, decrease the reservations; if no reservations left record the end time stamp */
+        void handleTaskComplete(boolean isHT) {
+            remainingTasks--;
+            if(isHT != shortjob) shortjob = isHT;
+            if(remainingTasks ==0)
+                end = System.currentTimeMillis();
+        }
+
+        boolean allTasksCompleted() {
+            if(remainingTasks == 0) {
+                remainingTasks = -1; //Reset the flag to avoid multiple access the critical section
+                return true;
+            } else
+                return false;
+        }
+
+        long elapsed() {
+            return end - start;
+        }
+
+        boolean isShortjob() {
+            return shortjob;
+        }
     }
 
 }

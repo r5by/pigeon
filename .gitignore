@@ -40,4 +40,5 @@ nodemonitor.ref/
 out/
 classes/
 src/main/resources/
-*.sh
+deploy/example_eagle_configuration.conf
+requestInfo.txt

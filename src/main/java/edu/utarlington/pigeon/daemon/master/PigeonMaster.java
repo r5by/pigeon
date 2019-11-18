@@ -1,3 +1,23 @@
+/*
+ * PIGEON
+ * Copyright 2018 Univeristy of Texas at Arlington
+ *
+ * Modified from Sparrow - University of California, Berkeley
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
 package edu.utarlington.pigeon.daemon.master;
 
 
@@ -34,7 +54,6 @@ import java.util.concurrent.ConcurrentMap;
 public class PigeonMaster {
 
     private final static Logger LOG = Logger.getLogger(PigeonMaster.class);
-//    private final static Logger AUDIT_LOG = Logging.getAuditLogger(TaskScheduler.class);
 
     private static PigeonMasterState state;
 
@@ -66,7 +85,6 @@ public class PigeonMaster {
         String mode = conf.getString(PigeonConf.DEPLYOMENT_MODE, "unspecified");
         if (mode.equals("standalone")) {
             //TODO: Other mode
-//            state = new StandaloneNodeMonitorState();
         } else if (mode.equals("configbased")) {
             state = new ConfigMasterState();
         } else {
@@ -77,12 +95,6 @@ public class PigeonMaster {
         } catch (IOException e) {
             LOG.fatal("Error initializing node monitor state.", e);
         }
-
-        //TODO: Maybe we can check whether the statically configured features matches the run-time environment?
-//        int cores = Resources.getSystemCPUCount(conf);
-//        LOG.info("Using core allocation: " + cores);
-//        int mem = Resources.getSystemMemoryMb(conf);
-//        LOG.info("Using memory allocation: " + mem);
 
         ipAddress = Network.getIPAddress(conf);
         this.masterInternalPort = masterInternalPort;
@@ -113,6 +125,7 @@ public class PigeonMaster {
 
     public boolean registerBackend(String app, InetSocketAddress internalAddr, InetSocketAddress backendAddr, int type) {
         LOG.debug("Attempt to register worker: " + backendAddr + " at master:" + internalAddr + " for App: " + app);
+        //TODO: fix backend registration synchonization problem
         switch (type) {
             case 0:
                 if (!appSocketsLIWs.containsKey(app))
@@ -137,7 +150,7 @@ public class PigeonMaster {
                 LOG.error("Invalid backend types!");
                 break;
         }
-
+        LOG.debug("debuginfo2 " + appSocketsLIWs.get(app).size());
         //TODO: verify the backend matches with the configured information
         return state.registerBackend(app, internalAddr, backendAddr, type);
     }
@@ -146,7 +159,8 @@ public class PigeonMaster {
     public boolean launchTasksRequest(TLaunchTasksRequest request) throws TException{
         LOG.info("Received launch task request from " + ipAddress + " for request " + request.requestID);
 
-        InetSocketAddress schedulerAddress = new InetSocketAddress(request.getSchedulerAddress().getHost(), request.getSchedulerAddress().getPort());
+        //TODO: sendFrontendMessage method should be accessed from recuirsive services, change the Thrif interface and uncomment the following statement
+        InetSocketAddress schedulerAddress = new InetSocketAddress(request.getSchedulerAddress().getHost(), 20503);
         requestSchedulers.put(request.getRequestID(), schedulerAddress);
 
         synchronized (state) {
@@ -164,7 +178,7 @@ public class PigeonMaster {
 
             //Pigeon decides whether to send the task launch request or not based on the available resources
             for (TTaskLaunchSpec task : request.tasksToBeLaunched) {
-                InetSocketAddress worker = null;
+                 InetSocketAddress worker = null;
                 if (task.isHT) {//For high priority tasks
                     if (!LIW.isEmpty()) {
                         //If low priority idle queue is not empty, pick up one and send the request to the nm
@@ -286,7 +300,6 @@ public class PigeonMaster {
     }
 
     public void sendFrontendMessage(String app, TFullTaskId taskId, int status, ByteBuffer message) {
-        //        LOG.debug(Logging.functionCall(app, taskId, message));
         InetSocketAddress scheduler = requestSchedulers.get(taskId.requestId);
         if (scheduler == null) {
             LOG.error("Did not find any scheduler info for request: " + taskId);

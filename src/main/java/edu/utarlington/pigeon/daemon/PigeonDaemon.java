@@ -52,8 +52,7 @@ public class PigeonDaemon {
         // Set up a simple configuration that logs on the console.
         BasicConfigurator.configure();
 
-        //TODO: (Huiyang) Add pigeon logging support
-//        Logging.configureAuditLogging();
+        //TODO: Add pigeon logging support
 
         String configFile = (String) options.valueOf("c");
         Configuration conf = new PropertiesConfiguration(configFile);
@@ -85,12 +84,7 @@ public class PigeonDaemon {
                     PigeonMasterThrift.DEFAULT_MASTER_THRIFT_PORT,
                     PigeonMasterThrift.DEFAULT_INTERNAL_THRIFT_PORT);
         }
-        else {//TODO: (Huiyang) Finish this part
-//            for (int i = 0; i < nmPorts.length; i++) {
-//                (new NodeMonitorThrift()).initialize(conf,
-//                        Integer.parseInt(nmPorts[i]), Integer.parseInt(inPorts[i]));
-//            }
-        }
+
 
         // Setup scheduler & recursive services
         SchedulerThrift scheduler = new SchedulerThrift();

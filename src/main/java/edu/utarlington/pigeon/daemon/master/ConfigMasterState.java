@@ -37,16 +37,11 @@ import java.util.Set;
 public class ConfigMasterState implements PigeonMasterState{
     private static final Logger LOG = Logger.getLogger(ConfigMasterState.class);
 
-//    private Set<InetSocketAddress> backendsHW;
-//    private Set<InetSocketAddress> backendsLW;
     private String staticAppId;
     private boolean upflag;
 
     @Override
     public void initialize(Configuration conf) throws IOException {
-        //Pigeon initializes node monitors for high/low priority task separately
-//        backendsHW = ConfigUtil.parseBackends(conf, PigeonConf.STATIC_HIGH_PRIORITY_WORKERS);
-//        backendsLW = ConfigUtil.parseBackends(conf, PigeonConf.STATIC_LOW_PRIORITY_WORKERS);
         staticAppId = conf.getString(PigeonConf.STATIC_APP_NAME);
         upflag = false;
     }
@@ -59,21 +54,6 @@ public class ConfigMasterState implements PigeonMasterState{
             LOG.error("Requested to register backend for app " + appId +
                     " but was expecting app " + staticAppId);
         }
-// else if (!(backendsHW.contains(master)
-//                        || backendsLW.contains(master))) {
-//            StringBuilder errorMessage = new StringBuilder();
-//
-//            for (InetSocketAddress addr : backendsHW) {
-//                errorMessage.append(addr.toString());
-//            }
-//            for (InetSocketAddress addr : backendsLW) {
-//                errorMessage.append(addr.toString());
-//            }
-//            throw new RuntimeException("Address " + master.toString() +
-//                    " not found among statically configured addreses for app " + appId + " (statically " +
-//                    "configured addresses include: " + errorMessage.toString());
-//        }
-
         return true;
     }
 

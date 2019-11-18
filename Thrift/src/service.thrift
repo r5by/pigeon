@@ -72,6 +72,7 @@ service SchedulerService {
   # Submit a job composed of a list of individual tasks.
   void submitJob(1: types.TSchedulingRequest req) throws (1: types.IncompleteRequestException e);
 
+  # TODO: Move this to RecursiveService (port should be *507)
   # Send a message to be delivered to the frontend for {app} pertaining
   # to the task {taskId}. The {status} field allows for application-specific
   # status enumerations. Right now this is used only for Spark, which relies on

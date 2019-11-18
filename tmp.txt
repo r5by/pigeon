@@ -1,0 +1,31 @@
+while((str = bufferedReader.readLine()) != null)
+            {
+                str = str+"\r\n";
+//                String[] SubmissionTime =  str.split("\\s{1,}|\t");
+                String[] SubmissionTime = str.split("\\s+|\t");
+                arrivalInterval = Double.parseDouble(SubmissionTime[0]);
+
+                arrivalIntervalinMilliSec = Double.valueOf(arrivalInterval * 1000).longValue();
+
+                averageDuriationMilliSec = Double.parseDouble(SubmissionTime[2]) * 1000;
+
+                //String[] dictionary = str.split("\\s{2}|\t");
+//                String[] dictionary = str.split("\\s");
+                //tasks = null;
+                for(int i = 3; i<SubmissionTime.length ;i++){
+                    //change second to milliseconds
+                    double taskDinMilliSec = Double.valueOf(SubmissionTime[i]) * 1000;
+                    tasks.add(taskDinMilliSec);
+
+                }
+
+                //Estimated experiment duration
+                exprTime += averageDuriationMilliSec * tasks.size();
+
+                ProtoFrontend.JobLaunchRunnable runnable = new JobLaunchRunnable(arrivalIntervalinMilliSec, averageDuriationMilliSec,tasks);
+                taskLauncher.schedule(runnable,  arrivalIntervalinMilliSec, TimeUnit.MILLISECONDS);
+
+                requestId++;
+                System.out.println(tasks);
+                tasks.clear();
+            }

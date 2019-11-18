@@ -80,7 +80,6 @@ public class PigeonMasterThrift implements MasterService.Iface, InternalService.
                 DEFAULT_INTERNAL_THRIFT_THREADS);
         TServers.launchThreadedThriftServer(internalPort, internalThreads, internalProcessor);
 
-//        internalAddr = new InetSocketAddress(InetAddress.getLocalHost(), internalPort);
         internalAddr = new InetSocketAddress(Network.getHostName(conf), internalPort);
     }
 
@@ -88,7 +87,7 @@ public class PigeonMasterThrift implements MasterService.Iface, InternalService.
     public boolean registerBackend(String app, String backendSocket, int type) throws TException {
         Optional<InetSocketAddress> backendAddr = Serialization.strToSocket(backendSocket);
         if (!backendAddr.isPresent()) {
-            return false; // TODO: maybe we should throw some exception here?
+            return false;
         }
         return pigeonMaster.registerBackend(app, internalAddr, backendAddr.get(), type);
     }
