@@ -10,6 +10,16 @@ if [ ! $APPCHK = '0' ]; then
   exit 1;
 fi
 
+scheduler_id_there=`cat frontend.conf |grep scheduler_id`
+if [ "X$scheduler_id_there" == "X" ]; then
+  echo "scheduler_id = $1" >> frontend.conf
+fi
+
+scheduler_size_there=`cat frontend.conf |grep scheduler_size`
+if [ "X$scheduler_size_there" == "X" ]; then
+  echo "scheduler_size = $2" >> frontend.conf
+fi
+
 # Wait for daemon ready
 sleep 5
 nohup java -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 -XX:+UseConcMarkSweepGC -verbose:gc -XX:+PrintGCTimeStamps -Xmx2046m -XX:+PrintGCDetails  -cp pigeon-1.0-SNAPSHOT.jar edu.utarlington.pigeon.examples.{{frontend_type}} -c frontend.conf > $LOG 2>&1 &

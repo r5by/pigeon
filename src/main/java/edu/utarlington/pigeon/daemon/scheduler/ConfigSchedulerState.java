@@ -31,14 +31,10 @@ import java.util.Set;
 /**
  * Scheduler state that operates based on a static configuration file.
  */
-//todo: clear comments
 public class ConfigSchedulerState implements SchedulerState{
     private static final Logger LOG = Logger.getLogger(ConfigSchedulerState.class);
 
-    //TODO: Delete hw/lw information, now pigeon only communicate with masters
     /* Pigeon scheduler save backends for high/low priority tasks separately */
-//    Set<InetSocketAddress> backendsHW;
-//    Set<InetSocketAddress> backendsLW;
 
     /* Pigeon scheduler save masters for tasks assignment */
     Set<InetSocketAddress> pigeonMasters;
@@ -47,16 +43,10 @@ public class ConfigSchedulerState implements SchedulerState{
 
     @Override
     public void initialize(Configuration conf) throws IOException {
-//        backendsHW = ConfigUtil.parseBackends(conf, PigeonConf.STATIC_HIGH_PRIORITY_WORKERS);
-//        backendsLW = ConfigUtil.parseBackends(conf, PigeonConf.STATIC_LOW_PRIORITY_WORKERS);
         pigeonMasters = ConfigUtil.parseBackends(conf, PigeonConf.STATIC_MASTERS);
         this.conf = conf;
     }
 
-//    @Override
-//    public boolean isHW(InetSocketAddress backendAddr) {
-//        return backendsHW.contains(backendAddr);
-//    }
 
 
     @Override
@@ -73,24 +63,4 @@ public class ConfigSchedulerState implements SchedulerState{
         LOG.debug("Preparing master nodes for pigeon schedulers");
         return pigeonMasters;
     }
-
-//    @Override
-//    public Set<InetSocketAddress> getBackends(String appId, boolean isHW) {
-//        if (!appId.equals(conf.getString(PigeonConf.STATIC_APP_NAME))) {
-//            LOG.warn("Requested backends for app " + appId +
-//                    " but was expecting app " + conf.getString(PigeonConf.STATIC_APP_NAME));
-//        }
-//
-//        return isHW ? backendsHW : backendsLW;
-//    }
-//
-//    @Override
-//    public Set<InetSocketAddress> getBackends(boolean isHW) {
-//        if(isHW)
-//            LOG.debug("Preparing backends for hight priority workloads");
-//        else
-//            LOG.debug("Preparing backends for low priority workloads");
-//
-//        return isHW ? backendsHW : backendsLW;
-//    }
 }

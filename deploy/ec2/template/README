@@ -1,2 +1,2 @@
-All files in this folder are copied to each remote Eagle node, with any
+All files in this folder are copied to each remote Pigeon node, with any
 variables filled in by the EC2 install script.

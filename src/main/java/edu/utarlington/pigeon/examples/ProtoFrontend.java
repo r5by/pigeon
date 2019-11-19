@@ -1,3 +1,23 @@
+/*
+ * PIGEON
+ * Copyright 2018 Univeristy of Texas at Arlington
+ *
+ * Modified from Sparrow - University of California, Berkeley
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
 package edu.utarlington.pigeon.examples;
 
 import edu.utarlington.pigeon.api.PigeonFrontendClient;
@@ -18,10 +38,7 @@ import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
 
 
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -50,6 +67,9 @@ public class ProtoFrontend implements FrontendService.Iface {
      * trace file config.
      */
     public static final String TR_PATH = "tr_path";
+    /* For multi-schedulers */
+    public static final String SCHEDULER_ID = "scheduler_id";
+    public static final String SCHEDULER_SIZE = "scheduler_size";
 
     private static final TUserGroupInfo USER = new TUserGroupInfo();
 
@@ -104,11 +124,30 @@ public class ProtoFrontend implements FrontendService.Iface {
             case 1:
                 LOG.debug("All tasks for request: " + taskId.requestId + " have been completed Type " + "Short Job" + " The total elapsed time is: " + message.getLong(message.position()) + " ms");
                 completedRequestsCount++;
+                String requestInfo = "All tasks for request: " + taskId.requestId + " have been completed Type " + "Short Job" + " The total elapsed time is: " + message.getLong(message.position()) + " ms";
+                CreateNewTxt(requestInfo);
                 break;
             case 2:
                 LOG.debug("All tasks for request: " + taskId.requestId + " have been completed Type " + "Long Job" + " The total elapsed time is: " + message.getLong(message.position()) + " ms");
                 completedRequestsCount++;
+                requestInfo = "All tasks for request: " + taskId.requestId + " have been completed Type " + "Long Job" + " The total elapsed time is: " + message.getLong(message.position()) + " ms";
+                CreateNewTxt(requestInfo);
                 break;
+        }
+    }
+
+    /*Output txt file*/
+    public void CreateNewTxt(String requestInfo){
+        BufferedWriter output = null;
+        try {
+            File file = new File("requestInfo.txt");
+            output = new BufferedWriter(new OutputStreamWriter(
+                    new FileOutputStream(file, true), "utf-8"));
+            output.write(requestInfo+"\r\n");
+            output.flush();
+            output.close();
+        } catch ( IOException e ) {
+            e.printStackTrace();
         }
     }
 
@@ -136,8 +175,9 @@ public class ProtoFrontend implements FrontendService.Iface {
             }
 
             String trPath = conf.getString(TR_PATH);
-//            Double traceCutOff = conf.getDouble(TR_CUTOFF, TR_CUTOFF_DEFAULT);
-//            traceCutOffMilliSec = traceCutOff.longValue();
+            int counter = 0;
+            int schedulerId = conf.getInt(SCHEDULER_ID);
+            int schedulerSize = conf.getInt(SCHEDULER_SIZE);
 
             int schedulerPort = conf.getInt(SCHEDULER_PORT,
                     SchedulerThrift.DEFAULT_SCHEDULER_THRIFT_PORT);
@@ -165,34 +205,37 @@ public class ProtoFrontend implements FrontendService.Iface {
 
             while((str = bufferedReader.readLine()) != null)
             {
-                str = str+"\r\n";
-                String[] SubmissionTime =  str.split("\\s{1,}|\t");
-                arrivalInterval = Double.parseDouble(SubmissionTime[0]);
+                if(counter % schedulerSize == schedulerId) {
+                    str = str+"\r\n";
+                    String[] SubmissionTime = str.split("\\s+|\t");
+                    arrivalInterval = Double.parseDouble(SubmissionTime[0]);
 
-                arrivalIntervalinMilliSec = Double.valueOf(arrivalInterval * 1000).longValue();
+                    arrivalIntervalinMilliSec = Double.valueOf(arrivalInterval * 1000).longValue();
 
-                averageDuriationMilliSec = Double.parseDouble(SubmissionTime[2]) * 1000;
+                    averageDuriationMilliSec = Double.parseDouble(SubmissionTime[2]) * 1000;
 
-                String[] dictionary = str.split("\\s{2}|\t");
-                //tasks = null;
-                for(int i = 1;i<dictionary.length-1;i++){
-                    //change second to milliseconds
-                    double taskDinMilliSec = Double.valueOf(dictionary[i]) * 1000;
-                    tasks.add(taskDinMilliSec);
+                    for(int i = 3; i<SubmissionTime.length ;i++){
+                        //change second to milliseconds
+                        double taskDinMilliSec = Double.valueOf(SubmissionTime[i]) * 1000;
+                        tasks.add(taskDinMilliSec);
 
+                    }
+
+                    //Estimated experiment duration
+                    exprTime += averageDuriationMilliSec * tasks.size();
+
+                    ProtoFrontend.JobLaunchRunnable runnable = new JobLaunchRunnable(arrivalIntervalinMilliSec, averageDuriationMilliSec,tasks);
+                    taskLauncher.schedule(runnable,  arrivalIntervalinMilliSec, TimeUnit.MILLISECONDS);
+
+                    totalNumberOfRequests++;
+                    requestId++;
+                    System.out.println(tasks);
+                    tasks.clear();
                 }
 
-                //Estimated experiment duration
-                exprTime += averageDuriationMilliSec * tasks.size();
-
-                ProtoFrontend.JobLaunchRunnable runnable = new JobLaunchRunnable(arrivalIntervalinMilliSec, averageDuriationMilliSec,tasks);
-                taskLauncher.schedule(runnable,  arrivalIntervalinMilliSec, TimeUnit.MILLISECONDS);
-
-                totalNumberOfRequests++;
-                requestId++;
-                System.out.println(tasks);
-                tasks.clear();
+                counter++;
             }
+
             System.out.println(tasks);
             inputStream.close();
             bufferedReader.close();

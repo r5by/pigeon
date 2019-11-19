@@ -101,7 +101,6 @@ public abstract class TaskScheduler {
     }
 
     private final static Logger LOG = Logger.getLogger(TaskScheduler.class);
-//    private final static Logger AUDIT_LOG = Logging.getAuditLogger(TaskScheduler.class);
     protected String ipAddress;
 
     protected Configuration conf;
@@ -152,16 +151,11 @@ public abstract class TaskScheduler {
     }
 
     void noTaskForReservation(String appId, String requestId, InetSocketAddress schedulerAddr, THostPort master) {
-//        AUDIT_LOG.info(Logging.auditEventString("node_monitor_get_task_no_task",
-//                taskReservation.requestId,
-//                taskReservation.previousRequestId,
-//                taskReservation.previousTaskId));
         handleNoTasksReservations(appId, requestId, schedulerAddr, master);
     }
 
     protected void makeTaskRunnable(TaskSpec task) {
         try {
-//            LOG.debug("Putting reservation for request " + task.requestId + " in runnable queue");
             runnableTaskQueue.put(task);
         } catch (InterruptedException e) {
             LOG.fatal("Unable to add task to runnable queue: " + e.getMessage());
@@ -202,7 +196,6 @@ public abstract class TaskScheduler {
      * Cancels all task reservations with the given request id. Returns the number of task
      * reservations cancelled.
      */
-//    abstract int cancelTaskReservations(String requestId);
 
     /**
      * Handles the completion of a task that has finished executing.

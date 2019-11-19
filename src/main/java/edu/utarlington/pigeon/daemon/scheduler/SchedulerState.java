@@ -31,7 +31,6 @@ import java.util.Set;
  * own class since state storage may involve communicating to external services
  * such as ZooKeeper.
  */
-//todo: clear comments
 public interface SchedulerState {
     /**
      * Initialize state storage. This should open connections to any external
@@ -45,7 +44,6 @@ public interface SchedulerState {
      * @param backendAddr
      * @return
      */
-//    public boolean isHW (InetSocketAddress backendAddr);
 
     /**
      * Signal that state storage will be queried for information about
@@ -60,7 +58,5 @@ public interface SchedulerState {
      *
      * For pigeon, this function also returned hw/lw backends separately
      */
-//    public Set<InetSocketAddress> getBackends(String appId, boolean isHW);
-//    public Set<InetSocketAddress> getBackends(boolean isHW);
     public Set<InetSocketAddress> getMasters();
 }
