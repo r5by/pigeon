@@ -1,6 +1,6 @@
-# This is the readme file of how to use Pigeon simulator
+# How to use Pigeon simulator
 
-## Structure
+## File Structure
 The Pigeon simulator includes 9 files
 + pigeon.cpp       -----the main program of pigeon.
 + job.h            -----the parameter set up head file
@@ -13,8 +13,18 @@ The Pigeon simulator includes 9 files
 
 ## Instructions
 The following instructions are on how to complile and run the simulator, different systems may be different.
-The above 8 files can be complied as g++ pigeon.cpp -lm -o pigeon
-pigeon is a complied file, can be run as ./pigeon
+The above 8 files can be complied as 
+```bash
+g++ pigeon.cpp -lm -o pigeon
+```
+pigeon is a complied file, can be run as `./pigeon`
 
-Using cal_result.cpp   compile: g++ cal_result.cpp -lm -o cal
-run: ./cal
+Using cal_result.cpp compile: 
+```bash
+g++ cal_result.cpp -lm -o cal
+```
+run: `./cal`
+
+
+## Contact
+- Zhijun Wang <zhijun.wang@uta.edu>
